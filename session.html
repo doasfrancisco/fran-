@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+ <head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>
+   fran++ — Designing a new programming language
+  </title>
+  <style>
+   body { font-family: 'Segoe UI', system-ui, sans-serif; max-width: 900px; margin: 0 auto; padding: 2rem; line-height: 1.6; color: #1a1a1a; background: #fafafa; }
+h1 { border-bottom: 3px solid #333; padding-bottom: 0.5rem; }
+h2 { color: #2c3e50; margin-top: 2.5rem; border-bottom: 1px solid #ddd; padding-bottom: 0.3rem; }
+h3 { color: #34495e; }
+pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 6px; overflow-x: auto; }
+code { font-family: 'Cascadia Code', 'Fira Code', monospace; }
+pre code { font-size: 0.9rem; }
+code:not(pre code) { background: #e8e8e8; padding: 0.15rem 0.4rem; border-radius: 3px; font-size: 0.9em; }
+.user { background: #e3f2fd; border-left: 4px solid #1976d2; padding: 0.8rem 1rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+.assistant { background: #f5f5f5; border-left: 4px solid #666; padding: 0.8rem 1rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+.insight { background: #fff3e0; border-left: 4px solid #f57c00; padding: 0.8rem 1rem; margin: 1rem 0; border-radius: 0 6px 6px 0; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+th, td { border: 1px solid #ddd; padding: 0.5rem 0.8rem; text-align: left; }
+th { background: #f0f0f0; }
+.result { background: #e8f5e9; border: 2px solid #4caf50; padding: 1rem; border-radius: 6px; margin: 1rem 0; }
+  </style>
+ </head>
+ <body>
+  <header>
+   <h1>
+    fran++ — Designing a new programming language
+   </h1>
+   <p>
+    <strong>
+     Date:
+    </strong>
+    2026-03-15  |
+    <strong>
+     Repo:
+    </strong>
+    <a href="https://github.com/doasfrancisco/fran-">
+     github.com/doasfrancisco/fran-
+    </a>
+   </p>
+  </header>
+  <main>
+   <section>
+    <h2>
+     1. Starting Point — TLA+ as an abstraction layer
+    </h2>
+    <div class="user">
+     <p>
+      <strong>
+       User:
+      </strong>
+      Shared a previous Claude conversation exploring TLA+ as a "thinking layer" between English and Python. TLA+ forces you to nail down your state machine before touching syntax. The core idea: state = snapshot of all variables, system = all possible sequences of states, you define Init + Next, and TLC checks millions of behaviors to find bugs before writing real code.
+     </p>
+    </div>
+    <div class="user">
+     <p>
+      <strong>
+       User:
+      </strong>
+      Create a new folder called
+      <code>
+       fran++
+      </code>
+      for a new programming language.
+     </p>
+    </div>
+    <div class="assistant">
+     <p>
+      <strong>
+       Claude:
+      </strong>
+      Created the
+      <code>
+       fran++/
+      </code>
+      folder. Windows NTFS allows
+      <code>
+       +
+      </code>
+      in folder names.
+     </p>
+    </div>
+   </section>
+   <section>
+    <h2>
+     2. v0.0.1 — TLA+ Syntax Compiler
+    </h2>
+    <div class="user">
+     <p>
+      <strong>
+       User:
+      </strong>
+      Build a compiler that transforms TLA+ HelloWorld spec into Python.
+     </p>
+    </div>
+    <div class="assistant">
+     <p>
+      <strong>
+       Claude:
+      </strong>
+      Built a full lexer/parser/codegen pipeline:
+     </p>
+    </div>
+    <h3>
+     Input (TLA+)
+    </h3>
+    <pre><code class="language-tla">---- MODULE HelloWorld ----
+VARIABLE printed
+Init == printed = FALSE
+Print == printed = FALSE /\ printed' = TRUE
+Next == Print
+TypeInvariant == printed \in {TRUE, FALSE}
+Spec == Init /\ [][Next]_printed
+====</code></pre>
+    <h3>
+     Output (Python)
+    </h3>
+    <pre><code class="language-python">import random
+
+class HelloWorld:
+    def __init__(self):
+        self.printed = False
+
+    def print(self):  # TLA+: Print
+        if self.printed == False:
+            self.printed = True
+            return True
+        return False
+
+    def step(self):
+        actions = []
+        if self.printed == False:
+            actions.append(self.print)
+        if actions:
+            random.choice(actions)()
+
+    def check(self):
+        assert self.printed in {True, False}, "TypeInvariant violated"</code></pre>
+    <h3>
+     Architecture
+    </h3>
+    <ul>
+     <li>
+      <code>
+       lexer.py
+      </code>
+      — Tokenizes TLA+ source (handles /\, \/, \in, primed variables, etc.)
+     </li>
+     <li>
+      <code>
+       tla_parser.py
+      </code>
+      — Recursive descent parser producing AST
+     </li>
+     <li>
+      <code>
+       codegen.py
+      </code>
+      — Generates Python class from AST
+     </li>
+     <li>
+      <code>
+       fran.py
+      </code>
+      — CLI entry point
+     </li>
+    </ul>
+    <h3>
+     Syntax change:
+     <code>
+      and
+     </code>
+     /
+     <code>
+      or
+     </code>
+     instead of
+     <code>
+      /\
+     </code>
+     and
+     <code>
+      \/
+     </code>
+    </h3>
+    <div class="user">
+     <p>
+      <strong>
+       User:
+      </strong>
+      Can you change
+      <code>
+       /\
+      </code>
+      so it is instead
+      <code>
+       and
+      </code>
+      ?
+     </p>
+    </div>
+    <p>
+     Added
+     <code>
+      and
+     </code>
+     and
+     <code>
+      or
+     </code>
+     as keyword alternatives. Both forms accepted, can mix in same spec.
+    </p>
+    <h3>
+     FizzBuzz with IF/THEN/ELSE
+    </h3>
+    <p>
+     Added IF/THEN/ELSE support to compile FizzBuzz:
+    </p>
+    <pre><code class="language-tla">---- MODULE FizzBuzz ----
+VARIABLES i, output
+Init == i = 1 and output = ""
+Step == i &lt;= 15
+    and output' = IF i % 15 = 0 THEN "FizzBuzz"
+                  ELSE IF i % 3 = 0 THEN "Fizz"
+                  ELSE IF i % 5 = 0 THEN "Buzz"
+                  ELSE i
+    and i' = i + 1
+Next == Step
+====</code></pre>
+    <div class="result">
+     <strong>
+      Output:
+     </strong>
+     Fizz, Buzz, FizzBuzz all appear correctly at the right positions. 1 through 15.
+    </div>
+   </section>
+   <section>
+    <h2>
+     3. Key Realizations
+    </h2>
+    <div class="insight">
+     <h3>
+      TLA+ looks like Python for simple things
+     </h3>
+     <p>
+      <strong>
+       User:
+      </strong>
+      "I see the code in TLA+ for fizzbuzz and it's similar to a simple python. Is there a way to make it look similar to English?"
+     </p>
+    </div>
+    <div class="insight">
+     <h3>
+      State machines aren't always the right abstraction
+     </h3>
+     <p>
+      <code>
+       1 + 3 + 5
+      </code>
+      doesn't need state machine decomposition. Pure expressions are already the most compressed form. State machines earn their keep when things change over time, have rules, or involve concurrency.
+     </p>
+    </div>
+    <div class="insight">
+     <h3>
+      Compression = separating the idea from the machinery
+     </h3>
+     <p>
+      FizzBuzz is not an if/elif chain. It's a rule:
+      <code>
+       {3: "Fizz", 5: "Buzz"}
+      </code>
+      . The if/elif chain is machinery that implements the rule.
+     </p>
+     <pre><code>Good compression: divisors {3: "Fizz", 5: "Buzz"}
+Bad compression: same logic with fewer characters</code></pre>
+    </div>
+    <div class="insight">
+     <h3>
+      LLMs are part of the language
+     </h3>
+     <p>
+      Pipeline:
+      <strong>
+       English → (LLM) → fran++ → (compiler) → Python
+      </strong>
+     </p>
+     <p>
+      User says "fizzbuzz" → LLM knows the algorithm → emits compressed form → compiler produces Python. Without the LLM, fran++ is just another syntax.
+     </p>
+    </div>
+    <div class="insight">
+     <h3>
+      Rules and goals, not steps
+     </h3>
+     <p>
+      From studying real TLA+ specs (DieHard, CoffeeCan, GameOfLife via Nia-indexed repos):
+     </p>
+     <p>
+      <em>
+       "TLA+ is most powerful NOT when it describes an algorithm step by step. It's powerful
+       <strong>
+        when it describes rules and goals and lets the machine figure out the steps.
+       </strong>
+       "
+      </em>
+     </p>
+    </div>
+    <div class="insight">
+     <h3>
+      Two kinds of problems
+     </h3>
+     <table>
+      <tr>
+       <th>
+        Type
+       </th>
+       <th>
+        Example
+       </th>
+       <th>
+        You provide
+       </th>
+      </tr>
+      <tr>
+       <td>
+        Transformations
+       </td>
+       <td>
+        FizzBuzz, sorting, 1+3+5
+       </td>
+       <td>
+        The steps (you know them)
+       </td>
+      </tr>
+      <tr>
+       <td>
+        Search problems
+       </td>
+       <td>
+        DieHard, puzzles, scheduling
+       </td>
+       <td>
+        Rules + goal (machine finds steps)
+       </td>
+      </tr>
+     </table>
+    </div>
+   </section>
+   <section>
+    <h2>
+     4. v2 — English-like syntax with BFS solver
+    </h2>
+    <div class="user">
+     <p>
+      <strong>
+       User:
+      </strong>
+      Move all files to v0.0.1. Let's start from the beginning. State machine thinking is the point. Use English language, no
+      <code>
+       {}
+      </code>
+      , use the lexer/parser/codegen pipeline, compile to Python, show the answer.
+     </p>
+    </div>
+    <h3>
+     The spec (water_jugs.fpp)
+    </h3>
+    <pre><code class="language-text">module WaterJugs
+
+variables
+    big = 0
+    small = 0
+
+action FillBig
+    set big to 5
+
+action FillSmall
+    set small to 3
+
+action EmptyBig
+    set big to 0
+
+action EmptySmall
+    set small to 0
+
+action PourSmallToBig
+    set big to min(big + small, 5)
+    set small to small - (min(big + small, 5) - big)
+
+action PourBigToSmall
+    set small to min(big + small, 3)
+    set big to big - (min(big + small, 3) - small)
+
+constraint
+    big between 0 and 5
+    small between 0 and 3
+
+goal
+    big = 4</code></pre>
+    <h3>
+     Compiled Python (water_jugs.py)
+    </h3>
+    <pre><code class="language-python">from collections import deque
+
+def solve():
+    initial = {"big": 0, "small": 0}
+
+    def fill_big(s):
+        return {**s, "big": 5}
+
+    def fill_small(s):
+        return {**s, "small": 3}
+
+    def empty_big(s):
+        return {**s, "big": 0}
+
+    def empty_small(s):
+        return {**s, "small": 0}
+
+    def pour_small_to_big(s):
+        return {**s, "big": min(s["big"] + s["small"], 5),
+                "small": s["small"] - (min(s["big"] + s["small"], 5) - s["big"])}
+
+    def pour_big_to_small(s):
+        return {**s, "small": min(s["big"] + s["small"], 3),
+                "big": s["big"] - (min(s["big"] + s["small"], 3) - s["small"])}
+
+    all_actions = [
+        ("FillBig", fill_big), ("FillSmall", fill_small),
+        ("EmptyBig", empty_big), ("EmptySmall", empty_small),
+        ("PourSmallToBig", pour_small_to_big),
+        ("PourBigToSmall", pour_big_to_small),
+    ]
+
+    def is_valid(s):
+        return 0 &lt;= s["big"] &lt;= 5 and 0 &lt;= s["small"] &lt;= 3
+
+    def is_goal(s):
+        return s["big"] == 4
+
+    # BFS explores all states, finds shortest path
+    queue = deque([(initial, [])])
+    visited = {tuple(sorted(initial.items()))}
+
+    while queue:
+        state, path = queue.popleft()
+        if is_goal(state):
+            # print solution...
+            return
+        for action_name, action_fn in all_actions:
+            next_state = action_fn(state)
+            key = tuple(sorted(next_state.items()))
+            if key not in visited and is_valid(next_state):
+                visited.add(key)
+                queue.append((next_state, path + [(action_name, next_state)]))
+
+solve()</code></pre>
+    <h3>
+     Result
+    </h3>
+    <div class="result">
+     <pre>Solution found in 6 steps:
+
+  Start: big=0, small=0
+  FillBig -&gt; big=5, small=0
+  PourBigToSmall -&gt; big=2, small=3
+  EmptySmall -&gt; big=2, small=0
+  PourBigToSmall -&gt; big=0, small=2
+  FillBig -&gt; big=5, small=2
+  PourBigToSmall -&gt; big=4, small=3</pre>
+     <p>
+      <strong>
+       32 lines of English → 66 lines of Python BFS solver → shortest solution found automatically.
+      </strong>
+     </p>
+     <p>
+      You described the puzzle. The machine solved it.
+     </p>
+    </div>
+   </section>
+   <section>
+    <h2>
+     5. TLA+ Resources (indexed via Nia)
+    </h2>
+    <table>
+     <tr>
+      <th>
+       Repo
+      </th>
+      <th>
+       What
+      </th>
+     </tr>
+     <tr>
+      <td>
+       tlaplus/tlaplus
+      </td>
+      <td>
+       Main tools — TLC model checker, PlusCal, Toolbox IDE
+      </td>
+     </tr>
+     <tr>
+      <td>
+       tlaplus/CommunityModules
+      </td>
+      <td>
+       Extended stdlib — Folds, Functions, SequencesExt, Graphs
+      </td>
+     </tr>
+     <tr>
+      <td>
+       tlaplus/Examples
+      </td>
+      <td>
+       Real-world specs — DieHard, CoffeeCan, GameOfLife, DiningPhilosophers
+      </td>
+     </tr>
+     <tr>
+      <td>
+       tlaplus/PlusPy
+      </td>
+      <td>
+       Run TLA+ specs directly in Python
+      </td>
+     </tr>
+     <tr>
+      <td>
+       tlaplus/apalache
+      </td>
+      <td>
+       Symbolic model checker (alternative to TLC)
+      </td>
+     </tr>
+    </table>
+    <h3>
+     Key specs studied
+    </h3>
+    <ul>
+     <li>
+      <strong>
+       DieHard
+      </strong>
+      — Water jugs puzzle. 6 actions, goal
+      <code>
+       big = 4
+      </code>
+      . Inspired fran++ v2.
+     </li>
+     <li>
+      <strong>
+       CoffeeCan
+      </strong>
+      — States a hypothesis and TLC proves/disproves it. The spec is a question, not a program.
+     </li>
+     <li>
+      <strong>
+       GameOfLife
+      </strong>
+      — Grid-based cellular automaton in pure TLA+.
+     </li>
+    </ul>
+   </section>
+   <section>
+    <h2>
+     6. Open Questions
+    </h2>
+    <ul>
+     <li>
+      What's the right level of compression? Too compressed = unreadable. Too verbose = just Python.
+     </li>
+     <li>
+      How does the LLM know which fran++ constructs to emit? Standard library of patterns?
+     </li>
+     <li>
+      Where does verification fit? Automatic, optional, or the whole point?
+     </li>
+     <li>
+      How to handle transformations (FizzBuzz) vs search problems (DieHard) in one language?
+     </li>
+     <li>
+      Can fran++ express both pure expressions AND state machines?
+     </li>
+    </ul>
+   </section>
+  </main>
+  <footer>
+   <p style="color: #888; margin-top: 3rem; border-top: 1px solid #ddd; padding-top: 1rem;">
+    Generated with Claude Code — 2026-03-15
+   </p>
+  </footer>
+ </body>
+</html>
