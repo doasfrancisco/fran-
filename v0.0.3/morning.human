@@ -1,0 +1,19 @@
+my-clients
+    source: contacts
+    tag: client
+
+urgent-emails
+    from: my-clients
+    age: < 48h
+    unread: yes
+    do: summarize
+
+morning-tasks
+    source: Notion
+    filter: due < 48h OR starred
+    rank: urgency
+
+morning-report
+    when: 9am daily
+    data: urgent-emails, morning-tasks
+    send: WhatsApp

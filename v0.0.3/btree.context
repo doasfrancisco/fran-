@@ -1,0 +1,4 @@
+information → products (name: str, price: float)
+sort by → price
+branching factor → 4
+compiler chose defaults — user said "pick any you like"

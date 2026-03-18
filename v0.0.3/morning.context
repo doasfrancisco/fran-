@@ -1,0 +1,7 @@
+contacts → Google Contacts API
+client → contacts tagged "client" in Google Contacts
+email → Gmail API, account: francisco@gmail.com
+Notion → database https://notion.so/abc123
+WhatsApp → +51 987 654 321
+urgency → sort by due_date ascending, starred items first
+summarize → one-line summary of email subject + sender + key ask

@@ -13,6 +13,7 @@ import os
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from macros import expand
 from lexer import Lexer
 from parser import Parser
 from codegen import PythonCodeGen
@@ -27,6 +28,7 @@ def main():
     output_file = None
     run_after = False
     show_ast = False
+    show_expand = False
 
     i = 2
     while i < len(sys.argv):
@@ -36,11 +38,19 @@ def main():
             run_after = True; i += 1
         elif sys.argv[i] == '--ast':
             show_ast = True; i += 1
+        elif sys.argv[i] == '--expand':
+            show_expand = True; i += 1
         else:
             print(f"Unknown option: {sys.argv[i]}", file=sys.stderr); sys.exit(1)
 
     with open(spec_file, 'r', encoding='utf-8') as f:
         source = f.read()
+
+    source = expand(source)
+
+    if show_expand:
+        print(source)
+        return
 
     tokens = Lexer(source).tokenize()
     module = Parser(tokens).parse()
