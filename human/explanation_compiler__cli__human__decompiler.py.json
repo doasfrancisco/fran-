@@ -7,10 +7,10 @@
       "block_lines": [
         [
           1,
-          892
+          945
         ]
       ],
-      "text": "import the code reader of python, the line matcher, json, the shell, and\n[the map run](compiler/cli/human/cmd_map.py) \u2014 the neighbour that saves one entry\n\nANCHOR_RE    = the look of a pin: the words in square brackets, the target in parentheses\nSYNC_PROMPT  = the letter to claude when the code changed: mend only the words the change made wrong\nSTALE_PROMPT = the letter to claude when a parent abstraction changed: mend only the child's wrong words\n\n\nfinding the pieces of a file\n\n[block_spans](block_spans)(path, lines)\n    path is the file on disk; lines is its text, one line each.\n    The tool finds every named piece of the file and the lines it covers, so a\n    pin can only point at a real piece. A markdown file gives its headings, a web\n    page its once-only tags and its functions, a python file its functions and\n    classes \u2014 read by python's own reader of code. Any other file has no pieces.\n\n[md_spans](md_spans)(path, lines)\n    Every heading is a piece that runs to the next heading of the same or a\n    higher level. Headings inside a code fence do not count. Two headings with\n    the same words stop the run, because a name must point at one place.\n\n[html_spans](html_spans)(path, lines)\n    The pieces of a web page, from two hands: [the once-only tags](tag_spans) \u2014 a\n    tag that opens once, from its opening line to its closing line \u2014 and the named\n    functions inside every script ([the script regions](script_regions) says where\n    the scripts are). A function with the name of a tag stops the run.\n\n[js_spans](js_spans)(path, lines, regions)\n    regions are the line ranges of the scripts.\n    The tool walks each script, notes where a function starts, and counts the\n    braces line by line ([the brace count](brace_delta), which skips braces inside\n    quotes and after //) to know where it ends. A function named twice stops the run.\n\n\nchecking the pins of a text\n\n[build_anchors](build_anchors)(text, data, spans, self_id, folder)\n    text is one abstraction; data is the map of the file; spans are its pieces;\n    self_id is the entry the text belongs to; folder is the project root.\n    The tool takes the pins one by one. The words must be there and appear once\n    in the text. A pin into the code goes to [the resolving](resolve_code_target);\n    a pin into an earlier abstraction must name an entry that exists, an anchor it\n    holds, and never its own entry. It gives back the list of checked pins, each\n    with its lines. One bad pin stops with the reason.\n\n[parse_target](parse_target)(raw)\n    raw is what stands in the parentheses of a pin.\n    `e3:the start` is a pin into entry 3's anchor; anything else names a piece\n    or a file.\n\n[resolve_code_target](resolve_code_target)(words, raw, spans, folder)\n    A piece of this file wins first. Then `file:piece` \u2014 a piece of another file\n    of the project. Then a file of the project on its own. Anything else stops.\n\n[check_cycle](check_cycle)(data, self_id, anchors)\n    The tool follows the pins into earlier abstractions, and theirs, and stops\n    when the chain comes back to the entry itself. A telling may not stand on\n    itself.\n\n[project_pins](project_pins)(anchors)\n    The pins of the project's own map must all name a file or a piece of a file.\n\n\nthe commands\n\n[cmd_retext](cmd_retext)(a)\n    a is what you typed: the file, the entry id, and the text or --text.\n    You type `human retext file 2 --text words.txt`.\n    The tool checks the new text like a new entry, and one thing more: every\n    anchor another entry points at must still be there. Then it puts the text in\n    place and marks each entry that points into it stale, so they can be mended\n    on your word.\n\n[cmd_undo](cmd_undo)(a)\n    The tool removes the last entry of the map. An entry that others point\n    into stays until they go first.\n\n[cmd_show](cmd_show)(a)\n    You type `human show file`, or `human show .` for the whole project.\n    The tool lists every entry \u2014 id, piece, lines, pins, stale or not \u2014 and\n    warns for every pin that no longer fits its lines, names a piece or a file\n    that is gone, or points at an anchor that is gone. For a python file it\n    reads [the imported names](import_names) \u2014 plain imports and the `from .`\n    ones of the same folder \u2014 and warns when a mapped neighbour has no pin in the\n    whole-file entry. For the project it adds [the doubled lines](dup_warnings):\n    a line of thirty letters or more that stands in the maps of two files, compared\n    with pins and punctuation stripped ([the bare line](norm_dup)). Then it says how\n    much of the file is covered.\n\n[cmd_lines](cmd_lines)(a)\n    The file with a number in front of every line.\n\n[cmd_sync](cmd_sync)(a)\n    You type `human sync file`, or `--old copy.py` when the last version does\n    not live in git, or `--stale 3` to mend one dependent entry.\n    For the project map the tool only re-resolves the file pins and reports the\n    gone ones. For a file that did not change it re-resolves the cross-file pins\n    and stops. Otherwise it holds [the old lines](old_lines_of) next to the new\n    ones, sees where each line went ([the line map](line_map)), and finds the\n    candidates: every entry whose lines ([the lines of an entry](entry_lines_set))\n    the change touched, plus every entry whose piece is gone. It carries every\n    entry and pin to its new lines ([the re-resolving](re_resolve), with\n    [the refresh of a file pin](refresh_file_anchor) for pins into other files).\n    With no candidate it saves and stops \u2014 no claude call. With candidates it\n    writes the letter \u2014 the diff, the pieces, the candidate texts, the anchors\n    they must keep \u2014 and asks claude, up to --tries times. Each answer is tried\n    on a copy of the map ([the rebuild](rebuild_all)): renamed pieces, new texts,\n    every pin checked, every needed anchor kept. One broken rule goes back to\n    claude with its name. The first good answer is saved, and the entries that\n    point into a changed one are marked stale.\n\n[repair_stale](repair_stale)(a, code_path, root, map_path, data, lines, spans)\n    The tool takes one stale entry, the old and new text of the parent it\n    stands on, and the anchors it must keep, and asks claude for the mended\n    child text, up to --tries times. Each answer passes the pin checks. The\n    first good one is saved and its own dependents are marked stale.\n\n[ask_claude](ask_claude)(prompt)\n    One call to claude with the letter; the answer is read as one JSON object.\n    A failed call stops the run.\n\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nthe small hands\n\n[numbered](numbered)(lines)                   the lines with a number in front\n[import_names](import_names)(lines)           the names a python file imports\n[norm_dup](norm_dup)(line)                    a line with pins and punctuation stripped, lowercase\n[expand](expand)(span_list)                   every line number inside a list of ranges\n[fmt](fmt)(nums)                              line numbers as \"3-5, 9\"\n[children_of](children_of)(data, eid)         the entries that point into entry eid\n[needed_words](needed_words)(data, eid)       the anchors of entry eid that other entries point at\n[mark_children](mark_children)(data, eid, old_text)\n                                              marks the dependents stale, with the old parent text\n[recompute](recompute)(data, lines)           which lines the map covers and which it does not\n[guard_structure](guard_structure)(data, map_path)\n                                              stops on a map of the old kind\n[find_root](find_root)(path)                  the folder at or above path that holds human/human.json\n[rel_name](rel_name)(code_path, root)         the path of a file from the root, like src/app.py\n[map_path_of](map_path_of)(code_path, root)   the map file of a code file: human/explanation_<path>.json,\n                                              the slashes written as __\n[register_file](register_file)(root, rel)     adds a file to the list in human/human.json\n[load_existing](load_existing)(code_path)     the map of a file, or a stop when there is none\n[read_text_arg](read_text_arg)(a)             the text from --text or from the pipe; a stop when empty\n[anchor_counts](anchor_counts)(anchors)       \"7 anchors (5 into the code, 2 into earlier explanations)\"\n[print_coverage](print_coverage)(missing, blank, lines)\n                                              \"covered: 61 of 63 code lines\" and the lines left\n[report_text_diff](report_text_diff)(eid, old, new)\n                                              the changed lines of an entry, - old and + new",
+      "text": "import the code reader of python, the line matcher, json, the shell, and\n[the map run](compiler/cli/human/cmd_map.py) \u2014 the neighbour that saves one entry\n\nANCHOR_RE      = the look of a pin: the words in square brackets, the target in parentheses\nSYNC_PROMPT    = the letter to claude when the code changed: read the whole file, mend the words the change made wrong, and add a sentence for each behaviour the change added\nSTALE_PROMPT   = the letter to claude when a parent abstraction changed: mend the child's wrong words and carry the new facts down\nPAGE_IMPORT_RE = the look of an import in a web page: a from with a path, or a script with a src\n\n\nfinding the pieces of a file\n\n[block_spans](block_spans)(path, lines)\n    path is the file on disk; lines is its text, one line each.\n    The tool finds every named piece of the file and the lines it covers, so a\n    pin can only point at a real piece. A markdown file gives its headings, a web\n    page its once-only tags and its functions, a python file its functions and\n    classes \u2014 read by python's own reader of code. Any other file has no pieces.\n\n[md_spans](md_spans)(path, lines)\n    Every heading is a piece that runs to the next heading of the same or a\n    higher level. Headings inside a code fence do not count. Two headings with\n    the same words stop the run, because a name must point at one place.\n\n[html_spans](html_spans)(path, lines)\n    The pieces of a web page, from two hands: [the once-only tags](tag_spans) \u2014 a\n    tag that opens once, from its opening line to its closing line \u2014 and the named\n    functions inside every script ([the script regions](script_regions) says where\n    the scripts are). A function with the name of a tag stops the run.\n\n[js_spans](js_spans)(path, lines, regions)\n    regions are the line ranges of the scripts.\n    The tool walks each script, notes where a function starts, and counts the\n    braces line by line ([the brace count](brace_delta), which skips braces inside\n    quotes and after //) to know where it ends. A function named twice stops the run.\n\n\nchecking the pins of a text\n\n[build_anchors](build_anchors)(text, data, spans, self_id, folder)\n    text is one abstraction; data is the map of the file; spans are its pieces;\n    self_id is the entry the text belongs to; folder is the project root.\n    The tool takes the pins one by one. The words must be there and appear once\n    in the text. A pin into the code goes to [the resolving](resolve_code_target);\n    a pin into an earlier abstraction must name an entry that exists, an anchor it\n    holds, and never its own entry. It gives back the list of checked pins, each\n    with its lines. One bad pin stops with the reason.\n\n[parse_target](parse_target)(raw)\n    raw is what stands in the parentheses of a pin.\n    `e3:the start` is a pin into entry 3's anchor; anything else names a piece\n    or a file.\n\n[resolve_code_target](resolve_code_target)(words, raw, spans, folder)\n    A piece of this file wins first. Then `file:piece` \u2014 a piece of another file\n    of the project. Then a file of the project on its own. Anything else stops.\n\n[check_cycle](check_cycle)(data, self_id, anchors)\n    The tool follows the pins into earlier abstractions, and theirs, and stops\n    when the chain comes back to the entry itself. A telling may not stand on\n    itself.\n\n[project_pins](project_pins)(anchors)\n    The pins of the project's own map must all name a file or a piece of a file.\n\n\nthe commands\n\n[cmd_retext](cmd_retext)(a)\n    a is what you typed: the file, the entry id, and the text or --text.\n    You type `human retext file 2 --text words.txt`.\n    The tool checks the new text like a new entry, and one thing more: every\n    anchor another entry points at must still be there. Then it puts the text in\n    place and marks each entry that points into it stale, so they can be mended\n    on your word.\n\n[cmd_undo](cmd_undo)(a)\n    The tool removes the last entry of the map. An entry that others point\n    into stays until they go first.\n\n[cmd_show](cmd_show)(a)\n    You type `human show file`, or `human show .` for the whole project.\n    The tool lists every entry \u2014 id, piece, lines, pins, stale or not \u2014 and\n    warns for every pin that no longer fits its lines, names a piece or a file\n    that is gone, or points at an anchor that is gone. For a python file it\n    reads [the imported names](import_names) \u2014 plain imports and the `from .`\n    ones of the same folder \u2014 and warns when a mapped neighbour has no pin in the\n    whole-file entry. For the project it adds [the doubled lines](dup_warnings):\n    a line of thirty letters or more that stands in the maps of two files, compared\n    with pins and punctuation stripped ([the bare line](norm_dup)). Then it says how\n    much of the file is covered.\n\n[cmd_lines](cmd_lines)(a)\n    The file with a number in front of every line.\n\n[cmd_sync](cmd_sync)(a)\n    You type `human sync file`, or `--old copy.py` when the last version does\n    not live in git, or `--stale 3` to mend one dependent entry.\n    For the project map the tool only re-resolves the file pins and reports the\n    gone ones. For a file that did not change it re-resolves the cross-file pins\n    and stops. Otherwise it holds [the old lines](old_lines_of) next to the new\n    ones, sees where each line went ([the line map](line_map)), and finds the\n    candidates: every entry whose lines ([the lines of an entry](entry_lines_set))\n    the change touched, plus every entry whose piece is gone. It carries every\n    entry and pin to its new lines ([the re-resolving](re_resolve), with\n    [the refresh of a file pin](refresh_file_anchor) for pins into other files).\n    With no candidate it saves and stops \u2014 no claude call. With candidates it\n    writes the letter \u2014 the diff, the path of the file to read whole,\n    [the line about the neighbours](touched_note) the file imports, the pieces,\n    the candidate texts, the anchors they must keep \u2014 and asks claude, up to\n    --tries times. Each answer is tried on a copy of the map\n    ([the rebuild](rebuild_all)): renamed pieces, new texts, every pin checked,\n    every needed anchor kept. One broken rule goes back to claude with its name.\n    The first good answer is saved, and the entries that point into a changed one\n    are marked stale. A candidate that got new lines but kept all its words gets\n    a warning that names [the pieces the new lines fall in](blocks_of).\n\n[repair_stale](repair_stale)(a, code_path, root, map_path, data, lines, spans)\n    The tool takes one stale entry, the old and new text of the parent it\n    stands on, the diff between the two, and the anchors it must keep, and asks\n    claude for the mended child text, up to --tries times. Each answer passes\n    the pin checks. The first good one is saved and its own dependents are\n    marked stale.\n\n[ask_claude](ask_claude)(prompt, root)\n    One call to claude with the letter; the answer is read as one JSON object.\n    The call runs in the project root, so claude can open the files the letter\n    names. A failed call stops the run.\n\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nthe small hands\n\n[numbered](numbered)(lines)                   the lines with a number in front\n[import_names](import_names)(lines)           the names a python file imports\n[sibling_imports](sibling_imports)(code_path, lines, root)\n                                              the files of the project this file imports, from a python\n                                              file or from a web page\n[blocks_of](blocks_of)(lines, spans, code_name)\n                                              the pieces a set of lines falls in\n[touched_note](touched_note)(code_path, old, new, root)\n                                              the letter's line about the neighbours, with the ones the\n                                              change added and removed\n[norm_dup](norm_dup)(line)                    a line with pins and punctuation stripped, lowercase\n[expand](expand)(span_list)                   every line number inside a list of ranges\n[fmt](fmt)(nums)                              line numbers as \"3-5, 9\"\n[children_of](children_of)(data, eid)         the entries that point into entry eid\n[needed_words](needed_words)(data, eid)       the anchors of entry eid that other entries point at\n[mark_children](mark_children)(data, eid, old_text)\n                                              marks the dependents stale, with the old parent text\n[recompute](recompute)(data, lines)           which lines the map covers and which it does not\n[guard_structure](guard_structure)(data, map_path)\n                                              stops on a map of the old kind\n[find_root](find_root)(path)                  the folder at or above path that holds human/human.json\n[rel_name](rel_name)(code_path, root)         the path of a file from the root, like src/app.py\n[map_path_of](map_path_of)(code_path, root)   the map file of a code file: human/explanation_<path>.json,\n                                              the slashes written as __\n[register_file](register_file)(root, rel)     adds a file to the list in human/human.json\n[load_existing](load_existing)(code_path)     the map of a file, or a stop when there is none\n[read_text_arg](read_text_arg)(a)             the text from --text or from the pipe; a stop when empty\n[anchor_counts](anchor_counts)(anchors)       \"7 anchors (5 into the code, 2 into earlier explanations)\"\n[print_coverage](print_coverage)(missing, blank, lines)\n                                              \"covered: 61 of 63 code lines\" and the lines left\n[report_text_diff](report_text_diff)(eid, old, new)\n                                              the changed lines of an entry, - old and + new",
       "anchors": [
         {
           "words": "the map run",
@@ -21,8 +21,8 @@
           "block": "block_spans",
           "lines": [
             [
-              202,
-              218
+              210,
+              226
             ]
           ]
         },
@@ -31,8 +31,8 @@
           "block": "md_spans",
           "lines": [
             [
-              79,
-              105
+              87,
+              113
             ]
           ]
         },
@@ -41,8 +41,8 @@
           "block": "html_spans",
           "lines": [
             [
-              192,
-              199
+              200,
+              207
             ]
           ]
         },
@@ -51,8 +51,8 @@
           "block": "tag_spans",
           "lines": [
             [
-              108,
-              128
+              116,
+              136
             ]
           ]
         },
@@ -61,8 +61,8 @@
           "block": "script_regions",
           "lines": [
             [
-              153,
-              167
+              161,
+              175
             ]
           ]
         },
@@ -71,8 +71,8 @@
           "block": "js_spans",
           "lines": [
             [
-              170,
-              189
+              178,
+              197
             ]
           ]
         },
@@ -81,8 +81,8 @@
           "block": "brace_delta",
           "lines": [
             [
-              131,
-              150
+              139,
+              158
             ]
           ]
         },
@@ -91,8 +91,8 @@
           "block": "build_anchors",
           "lines": [
             [
-              317,
-              340
+              364,
+              387
             ]
           ]
         },
@@ -101,8 +101,8 @@
           "block": "resolve_code_target",
           "lines": [
             [
-              293,
-              308
+              340,
+              355
             ]
           ]
         },
@@ -111,8 +111,8 @@
           "block": "parse_target",
           "lines": [
             [
-              286,
-              290
+              333,
+              337
             ]
           ]
         },
@@ -121,8 +121,8 @@
           "block": "resolve_code_target",
           "lines": [
             [
-              293,
-              308
+              340,
+              355
             ]
           ]
         },
@@ -131,8 +131,8 @@
           "block": "check_cycle",
           "lines": [
             [
-              343,
-              355
+              390,
+              402
             ]
           ]
         },
@@ -141,8 +141,8 @@
           "block": "project_pins",
           "lines": [
             [
-              311,
-              314
+              358,
+              361
             ]
           ]
         },
@@ -151,8 +151,8 @@
           "block": "cmd_retext",
           "lines": [
             [
-              484,
-              520
+              531,
+              567
             ]
           ]
         },
@@ -161,8 +161,8 @@
           "block": "cmd_undo",
           "lines": [
             [
-              523,
-              540
+              570,
+              587
             ]
           ]
         },
@@ -171,8 +171,8 @@
           "block": "cmd_show",
           "lines": [
             [
-              543,
-              619
+              590,
+              662
             ]
           ]
         },
@@ -181,8 +181,8 @@
           "block": "import_names",
           "lines": [
             [
-              221,
-              235
+              229,
+              243
             ]
           ]
         },
@@ -191,8 +191,8 @@
           "block": "dup_warnings",
           "lines": [
             [
-              243,
-              263
+              290,
+              310
             ]
           ]
         },
@@ -201,8 +201,8 @@
           "block": "norm_dup",
           "lines": [
             [
-              238,
-              240
+              285,
+              287
             ]
           ]
         },
@@ -211,8 +211,8 @@
           "block": "cmd_lines",
           "lines": [
             [
-              622,
-              626
+              665,
+              669
             ]
           ]
         },
@@ -221,8 +221,8 @@
           "block": "cmd_sync",
           "lines": [
             [
-              792,
-              892
+              838,
+              945
             ]
           ]
         },
@@ -231,8 +231,8 @@
           "block": "old_lines_of",
           "lines": [
             [
-              629,
-              637
+              672,
+              680
             ]
           ]
         },
@@ -241,8 +241,8 @@
           "block": "line_map",
           "lines": [
             [
-              640,
-              655
+              683,
+              698
             ]
           ]
         },
@@ -251,8 +251,8 @@
           "block": "entry_lines_set",
           "lines": [
             [
-              658,
-              663
+              701,
+              706
             ]
           ]
         },
@@ -261,8 +261,8 @@
           "block": "re_resolve",
           "lines": [
             [
-              678,
-              696
+              721,
+              739
             ]
           ]
         },
@@ -271,8 +271,18 @@
           "block": "refresh_file_anchor",
           "lines": [
             [
-              666,
-              675
+              709,
+              718
+            ]
+          ]
+        },
+        {
+          "words": "the line about the neighbours",
+          "block": "touched_note",
+          "lines": [
+            [
+              274,
+              282
             ]
           ]
         },
@@ -281,8 +291,18 @@
           "block": "rebuild_all",
           "lines": [
             [
-              699,
-              730
+              742,
+              773
+            ]
+          ]
+        },
+        {
+          "words": "the pieces the new lines fall in",
+          "block": "blocks_of",
+          "lines": [
+            [
+              264,
+              271
             ]
           ]
         },
@@ -291,8 +311,8 @@
           "block": "repair_stale",
           "lines": [
             [
-              733,
-              789
+              776,
+              835
             ]
           ]
         },
@@ -301,8 +321,8 @@
           "block": "ask_claude",
           "lines": [
             [
-              389,
-              395
+              436,
+              442
             ]
           ]
         },
@@ -311,8 +331,8 @@
           "block": "numbered",
           "lines": [
             [
-              75,
-              76
+              83,
+              84
             ]
           ]
         },
@@ -321,8 +341,38 @@
           "block": "import_names",
           "lines": [
             [
-              221,
-              235
+              229,
+              243
+            ]
+          ]
+        },
+        {
+          "words": "sibling_imports",
+          "block": "sibling_imports",
+          "lines": [
+            [
+              249,
+              261
+            ]
+          ]
+        },
+        {
+          "words": "blocks_of",
+          "block": "blocks_of",
+          "lines": [
+            [
+              264,
+              271
+            ]
+          ]
+        },
+        {
+          "words": "touched_note",
+          "block": "touched_note",
+          "lines": [
+            [
+              274,
+              282
             ]
           ]
         },
@@ -331,8 +381,8 @@
           "block": "norm_dup",
           "lines": [
             [
-              238,
-              240
+              285,
+              287
             ]
           ]
         },
@@ -341,8 +391,8 @@
           "block": "expand",
           "lines": [
             [
-              266,
-              270
+              313,
+              317
             ]
           ]
         },
@@ -351,8 +401,8 @@
           "block": "fmt",
           "lines": [
             [
-              273,
-              283
+              320,
+              330
             ]
           ]
         },
@@ -361,8 +411,8 @@
           "block": "children_of",
           "lines": [
             [
-              358,
-              360
+              405,
+              407
             ]
           ]
         },
@@ -371,8 +421,8 @@
           "block": "needed_words",
           "lines": [
             [
-              363,
-              365
+              410,
+              412
             ]
           ]
         },
@@ -381,8 +431,8 @@
           "block": "mark_children",
           "lines": [
             [
-              368,
-              373
+              415,
+              420
             ]
           ]
         },
@@ -391,8 +441,8 @@
           "block": "recompute",
           "lines": [
             [
-              376,
-              386
+              423,
+              433
             ]
           ]
         },
@@ -401,8 +451,8 @@
           "block": "guard_structure",
           "lines": [
             [
-              398,
-              401
+              445,
+              448
             ]
           ]
         },
@@ -411,8 +461,8 @@
           "block": "find_root",
           "lines": [
             [
-              404,
-              411
+              451,
+              458
             ]
           ]
         },
@@ -421,8 +471,8 @@
           "block": "rel_name",
           "lines": [
             [
-              414,
-              418
+              461,
+              465
             ]
           ]
         },
@@ -431,8 +481,8 @@
           "block": "map_path_of",
           "lines": [
             [
-              421,
-              426
+              468,
+              473
             ]
           ]
         },
@@ -441,8 +491,8 @@
           "block": "register_file",
           "lines": [
             [
-              429,
-              436
+              476,
+              483
             ]
           ]
         },
@@ -451,8 +501,8 @@
           "block": "load_existing",
           "lines": [
             [
-              439,
-              445
+              486,
+              492
             ]
           ]
         },
@@ -461,8 +511,8 @@
           "block": "read_text_arg",
           "lines": [
             [
-              448,
-              452
+              495,
+              499
             ]
           ]
         },
@@ -471,8 +521,8 @@
           "block": "anchor_counts",
           "lines": [
             [
-              455,
-              463
+              502,
+              510
             ]
           ]
         },
@@ -481,8 +531,8 @@
           "block": "print_coverage",
           "lines": [
             [
-              466,
-              469
+              513,
+              516
             ]
           ]
         },
@@ -491,8 +541,8 @@
           "block": "report_text_diff",
           "lines": [
             [
-              472,
-              481
+              519,
+              528
             ]
           ]
         }
@@ -503,8 +553,8 @@
       "block": "block_spans",
       "block_lines": [
         [
-          202,
-          218
+          210,
+          226
         ]
       ],
       "text": "The tool first looks at the end of the file's name,\n  because each kind of file names its pieces its own way.\n\n  A code file, ending in .py:\n      a piece is a part of the code with a name of its own \u2014\n      a function definition, or a class.\n      The tool does not read the code by itself. It hands the\n      file to a library: a ready-made helper that ships with\n      the language. The library looks at the code without\n      running it, and it knows the grammar of the language,\n      so it finds every function and every class, where each\n      one starts, where it ends, and what sits inside what.\n      That is why the pieces are exact, never guessed.\n      A file the library cannot read gives no pieces.\n\n  A document, ending in .md:\n      a piece is a section under a heading.\n      It runs until the next heading of its rank or higher.\n      A heading inside a [fenced example](md_spans) does not count.\n      Two headings with the same words are refused,\n      because a name must hold one thing only.\n\n  A web page, ending in .html:\n      the pieces come from two places.\n      A tag that appears one time only \u2014 head, style, body \u2014\n      is a piece, from where it opens to where it closes.\n      And every named function inside a script is a piece,\n      the nested ones too, found by counting the braces\n      that open and close around them.\n      A function that carries the name of a tag is refused.\n\n  Any other kind of file gives no pieces at all.",
@@ -514,8 +564,8 @@
           "block": "md_spans",
           "lines": [
             [
-              79,
-              105
+              87,
+              113
             ]
           ]
         }
@@ -526,8 +576,8 @@
       "block": "md_spans",
       "block_lines": [
         [
-          79,
-          105
+          87,
+          113
         ]
       ],
       "text": "A document can hold an example: a stretch of text shown\n  exactly as it is, the way a book quotes a letter.\n  A fence marks it: a line of three marks \u2014 ``` or ~~~ \u2014\n  opens the example, and the same line of marks closes it.\n\n  Inside the fences, nothing is really said \u2014 it is only\n  shown. A line in there that looks like a heading is just\n  a picture of a heading. So the tool passes over it: it\n  does not become a piece, and it does not end the section\n  it sits in.\n\n  The tool reads the document line by line. At an opening\n  fence it stops taking headings, and at the closing fence\n  it takes them again.",
@@ -547,108 +597,119 @@
       23,
       25,
       27,
-      37,
-      39,
-      43,
-      45,
-      47,
-      51,
-      53,
-      57,
-      59,
-      63,
-      68,
+      29,
+      40,
+      42,
+      46,
+      48,
+      50,
+      54,
+      56,
+      60,
+      62,
+      64,
+      66,
       70,
-      73,
-      74,
-      77,
+      76,
       78,
-      106,
-      107,
-      129,
-      130,
-      151,
-      152,
-      168,
-      169,
-      190,
-      191,
-      200,
-      201,
-      219,
-      220,
-      236,
-      237,
-      241,
-      242,
-      264,
-      265,
-      271,
+      81,
+      82,
+      85,
+      86,
+      114,
+      115,
+      137,
+      138,
+      159,
+      160,
+      176,
+      177,
+      198,
+      199,
+      208,
+      209,
+      227,
+      228,
+      244,
+      245,
+      247,
+      248,
+      262,
+      263,
       272,
+      273,
+      283,
       284,
-      285,
-      291,
-      292,
-      309,
-      310,
-      315,
-      316,
-      341,
-      342,
+      288,
+      289,
+      311,
+      312,
+      318,
+      319,
+      331,
+      332,
+      338,
+      339,
       356,
       357,
-      361,
       362,
-      366,
-      367,
-      374,
-      375,
-      387,
+      363,
       388,
-      396,
-      397,
-      402,
+      389,
       403,
-      412,
+      404,
+      408,
+      409,
       413,
-      419,
-      420,
-      427,
-      428,
-      437,
-      438,
-      446,
-      447,
-      453,
-      454,
-      464,
-      465,
-      470,
-      471,
-      482,
-      483,
-      521,
-      522,
-      541,
-      542,
-      620,
-      621,
-      627,
-      628,
-      638,
-      639,
-      656,
-      657,
+      414,
+      421,
+      422,
+      434,
+      435,
+      443,
+      444,
+      449,
+      450,
+      459,
+      460,
+      466,
+      467,
+      474,
+      475,
+      484,
+      485,
+      493,
+      494,
+      500,
+      501,
+      511,
+      512,
+      517,
+      518,
+      529,
+      530,
+      568,
+      569,
+      588,
+      589,
+      663,
       664,
-      665,
-      676,
-      677,
-      697,
-      698,
-      731,
-      732,
-      790,
-      791
+      670,
+      671,
+      681,
+      682,
+      699,
+      700,
+      707,
+      708,
+      719,
+      720,
+      740,
+      741,
+      774,
+      775,
+      836,
+      837
     ]
   }
 }

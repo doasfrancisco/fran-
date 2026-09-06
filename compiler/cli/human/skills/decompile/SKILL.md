@@ -154,7 +154,7 @@ human sync <code_file>
 
 - The old version comes from git `HEAD`; pass `--old <file>` when it lives elsewhere. Commit the code file together with its map, so `HEAD` is always the last synced state. Run sync exactly once per code change — a second run against the same `--old` re-applies the diff and corrupts the spans; use `human show` to look.
 - A deterministic pass re-resolves every block anchor and entry span from the new code. A change that only moves lines ends here — no claude call.
-- One claude call then repairs the words of the entries the change touches: it rewrites only the stale lines, keeps every anchor, retargets an anchor whose block was renamed, and renames an entry's block when the code renamed it. Gates check every anchor and retry up to `--tries` (default 4).
+- One claude call then repairs the words of the entries the change touches: it mends the stale lines, adds a sentence for each behaviour the change added — a new option, a new step, a new case — keeps every anchor, retargets an anchor whose block was renamed, and renames an entry's block when the code renamed it. The call runs at the project root and reads the whole file, plus the project files the file imports when a new sentence needs them. Gates check every anchor and retry up to `--tries` (default 4). When new lines land inside an entry and its text did not change, sync warns: those lines got no sentence.
 - Entries that point into a repaired entry are marked stale.
 
 `human sync .` at the root re-resolves the pins of `human/human.json` against the project — no claude call. A pin whose file is gone is reported; repair it with `human retext`.
@@ -165,7 +165,7 @@ When an **explanation** changed and its dependents are stale:
 human sync <code_file> --stale <id>
 ```
 
-One claude call reads the old and new text of the changed parent and repairs only the words of the dependent that went wrong, keeping every anchor. Repairs run one layer at a time, downward only, on the user's word — never recursively in one breath.
+One claude call reads the old and new text of the changed parent, mends the words of the dependent that went wrong, and carries a new fact of the parent down at the dependent's own level — pinned at the parent's new anchor — keeping every anchor. Repairs run one layer at a time, downward only, on the user's word — never recursively in one breath.
 
 ## 6. Report
 

@@ -11,11 +11,13 @@ from . import cmd_map
 
 ANCHOR_RE = re.compile(r"\[([^\[\]]+)\]\(([^()]+)\)")
 
-SYNC_PROMPT = """A code file changed. Explanation texts were written for the old version of the file. Repair only the words the change made wrong.
+SYNC_PROMPT = """A code file changed. Explanation texts were written for the old version of the file. Mend the words the change made wrong, and add a sentence for each behaviour the change added.
 
-The file is <code_file>. The unified diff of the change:
+The file is <code_file>. Read the whole file at <path> before you answer; the diff below shows only the changed lines, not the blocks around them. The unified diff of the change:
 
 <diff>
+
+<touched>
 
 The blocks of the new file, with their exact line spans:
 
@@ -27,12 +29,13 @@ The candidate entries, each with its full text:
 
 Anchors look like [words](block) or [words](e1:anchor words). The rules:
 - A text line is stale only when the change makes its words wrong. A line whose code moved but whose words still hold is not stale.
-- Rewrite a stale line with the smallest edit. Keep every other line verbatim. Keep the vocabulary, the layout, and the indentation.
+- Rewrite a stale line with the smallest edit. Keep every line the change does not touch verbatim. Keep the vocabulary, the layout, and the indentation.
 - Keep every anchor. When a block was renamed, keep the anchor words and update the target to the new block name.
 - These anchor words are pointed at by other entries and must survive unchanged:
 <needed>
 - A new bound name in the code needs a new line, in code order, in the style of the text. A dead name loses its line.
-- An entry whose words all still hold gets no key in the answer.
+- When the change adds a behaviour the reader would ask about — a new option, a new step, a new case — add a sentence for it where the reader meets it, in the style of the text. The reader does not read code: say what the thing does, not its class.
+- An entry whose words all still hold, and whose block gained no behaviour, gets no key in the answer.
 - When an entry's own block was renamed, put its new name in blocks.
 
 Return one JSON object and nothing else:
@@ -41,7 +44,7 @@ Return one JSON object and nothing else:
  "blocks": {"<entry id>": "<the new name of the entry's block, only when it was renamed>"}}
 """
 
-STALE_PROMPT = """An explanation depends on another explanation through anchors. That other explanation changed. Repair only the words the change made wrong.
+STALE_PROMPT = """An explanation depends on another explanation through anchors. That other explanation changed. Mend the words the change made wrong, and carry the new facts down.
 
 The old text of explanation <pid>:
 
@@ -55,6 +58,10 @@ The new text of explanation <pid>:
 <new_parent>
 ---
 
+The unified diff between the two:
+
+<parent_diff>
+
 The dependent text to repair:
 
 ---
@@ -62,7 +69,8 @@ The dependent text to repair:
 ---
 
 Anchors look like [words](block) or [words](e<pid>:anchor words). The rules:
-- Rewrite a line only when the change upstairs makes its words wrong. Keep every other line verbatim. Keep the vocabulary, the layout, and the indentation.
+- Rewrite a line only when the change upstairs makes its words wrong. Keep every line the change does not touch verbatim. Keep the vocabulary, the layout, and the indentation.
+- When explanation <pid> gained a sentence about a new behaviour, add a sentence for it in the dependent text, at the dependent's own level of detail — a plainer layer says less, never nothing. Pin it with [words](e<pid>:anchor words) when the new sentence upstairs has an anchor.
 - Keep every anchor.
 - These anchor words are pointed at by other entries and must survive unchanged: <needed>
 
@@ -235,6 +243,45 @@ def import_names(lines):
     return names
 
 
+PAGE_IMPORT_RE = re.compile(r"""(?:from\s+|<script[^>]*\bsrc=)["']\./?([^"']+)["']""")
+
+
+def sibling_imports(code_path, lines, root):
+    if code_path.suffix == ".py":
+        cands = [f"{nm}.py" for nm in import_names(lines)]
+    elif code_path.suffix in (".html", ".htm"):
+        cands = [m.group(1) for l in lines for m in PAGE_IMPORT_RE.finditer(l)]
+    else:
+        return set()
+    out = set()
+    for c in cands:
+        sib = code_path.parent / c
+        if sib.is_file() and root in sib.resolve().parents:
+            out.add(rel_name(sib.resolve(), root))
+    return out
+
+
+def blocks_of(lines, spans, code_name):
+    names = []
+    for i in sorted(lines):
+        holders = [(hi - lo, nm) for nm, (lo, hi) in spans.items() if lo <= i <= hi]
+        nm = min(holders)[1] if holders else code_name
+        if nm not in names:
+            names.append(nm)
+    return ", ".join(names)
+
+
+def touched_note(code_path, old, new, root):
+    was = sibling_imports(code_path, old, root)
+    now = sibling_imports(code_path, new, root)
+    if not was and not now:
+        return ""
+    names = [", ".join(sorted(s)) or "none" for s in (now, now - was, was - now)]
+    return (f"The file imports these files of the project: {names[0]} — added by this change: "
+            f"{names[1]} — removed: {names[2]}. Their paths start at {root}. "
+            f"Read the ones a new sentence needs; do not read the rest of the project.")
+
+
 def norm_dup(line):
     line = ANCHOR_RE.sub(lambda m: m.group(1), line)
     return " ".join(re.findall(r"[0-9a-z']+", line.lower()))
@@ -386,9 +433,9 @@ def recompute(data, lines):
     return missing, blank
 
 
-def ask_claude(prompt):
+def ask_claude(prompt, root):
     r = subprocess.run(["claude", "-p", prompt, "--output-format", "json"],
-                       capture_output=True, text=True, timeout=600)
+                       capture_output=True, text=True, timeout=600, cwd=str(root))
     if r.returncode != 0:
         sys.exit(f"claude failed: {r.stderr[-500:]}")
     raw = json.loads(r.stdout)["result"]
@@ -602,12 +649,8 @@ def cmd_show(a):
         whole = next((e for e in data["explanations"] if e["block"] == code_name), None)
         if whole:
             pinned = {x.get("file") for x in whole.get("anchors", [])}
-            for nm in sorted(import_names(lines)):
-                sib = code_path.parent / f"{nm}.py"
-                if not sib.is_file():
-                    continue
-                rel = rel_name(sib, root)
-                if map_path_of(sib, root).exists() and rel not in pinned:
+            for rel in sorted(sibling_imports(code_path, lines, root)):
+                if map_path_of(root / rel, root).exists() and rel not in pinned:
                     warnings.append(f"{code_name} imports {rel} but entry {whole['id']} "
                                     f"has no pin to it")
     if is_dir:
@@ -741,9 +784,12 @@ def repair_stale(a, code_path, root, map_path, data, lines, spans):
     if parent is None:
         sys.exit(f"explanation {st['parent']} no longer exists; retext entry {a.stale} instead")
     need = needed_words(data, entry["id"])
+    parent_diff = "\n".join(difflib.unified_diff(st["old_text"].splitlines(), parent["text"].splitlines(),
+                                                 "old", "new", lineterm=""))
     prompt = (STALE_PROMPT.replace("<pid>", str(parent["id"]))
               .replace("<old_parent>", st["old_text"])
               .replace("<new_parent>", parent["text"])
+              .replace("<parent_diff>", parent_diff)
               .replace("<child>", entry["text"])
               .replace("<needed>", ", ".join(sorted(need)) or "none"))
     text = None
@@ -751,7 +797,7 @@ def repair_stale(a, code_path, root, map_path, data, lines, spans):
     suffix = ""
     for _ in range(a.tries):
         try:
-            m = ask_claude(prompt + suffix)
+            m = ask_claude(prompt + suffix, root)
         except (ValueError, KeyError) as e:
             last = f"the answer was not one JSON object: {e}"
             suffix = "\n\nYour previous answer was not one JSON object. Return only the JSON."
@@ -846,7 +892,9 @@ def cmd_sync(a):
                        for i in sorted(cand) if needed_words(data, i)) or "none"
     diff = "\n".join(difflib.unified_diff(old, new_lines, "old", "new", lineterm=""))
     prompt = (SYNC_PROMPT.replace("<code_file>", code_name)
+              .replace("<path>", str(code_path))
               .replace("<diff>", diff)
+              .replace("<touched>", touched_note(code_path, old, new_lines, root))
               .replace("<span_table>", span_table)
               .replace("<candidates>", cands)
               .replace("<needed>", needed))
@@ -855,7 +903,7 @@ def cmd_sync(a):
     suffix = ""
     for _ in range(a.tries):
         try:
-            m = ask_claude(prompt + suffix)
+            m = ask_claude(prompt + suffix, root)
         except (ValueError, KeyError) as e:
             last = f"the answer was not one JSON object: {e}"
             suffix = "\n\nYour previous answer was not one JSON object. Return only the JSON."
@@ -883,6 +931,11 @@ def cmd_sync(a):
         if e["text"] != before["text"]:
             report_text_diff(e["id"], before["text"], e["text"])
             stale_kids.update(mark_children(trial, e["id"], before["text"]))
+        elif e["id"] in cand:
+            fresh = expand(e["block_lines"]) & inserted
+            if fresh:
+                print(f"warning: entry {e['id']}: {len(fresh)} new lines in "
+                      f"{blocks_of(fresh, spans, code_name)}, no word changed")
     if stale_kids:
         print(f"entries {', '.join(map(str, sorted(stale_kids)))} depend on a changed entry and are "
               f"marked stale; repair each with human sync {code_name} --stale <id>")

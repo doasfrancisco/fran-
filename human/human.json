@@ -69,7 +69,8 @@
     "compiler/cli/human/shapes/skeleton.md",
     "compiler/cli/human/skills/decompile/SKILL.md",
     "compiler/cli/human/skills/human/SKILL.md",
-    "compiler/cli/human/skills/shapes/SKILL.md"
+    "compiler/cli/human/skills/shapes/SKILL.md",
+    "feedback/sessions.json"
   ],
   "ignore": [
     "legacy/"
