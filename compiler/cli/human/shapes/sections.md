@@ -12,7 +12,7 @@ Validated on: compiler/cli/human/cmd_train.py — training sessions 20260905-201
 - Under each head stand two to six full sentences, indented. Every sentence has a subject — you, the tool, or claude — and a full stop.
 - A definition lives in place: the sentence that defines a thing — a row, a session, a level — stands under the head where the reader first meets it, never in a list of words apart from the text.
 - A block that exists to feed one step says that purpose: "It exists only so a picked text reaches the old commands the way a typed text would."
-- The top of the file — the imports and the names bound at the top — takes one line each before the first head, in plain words: "import the clock, json, the scratch files, and a lock".
+- The top of the file — the imports and the names bound at the top — takes one line each before the first head, in plain words: "import the clock, json, the scratch files, and a lock". A name at the top that holds a request or a rule — a letter to claude, a pattern that decides what counts — says what it asks for in its line: "the letter to claude when the code changed: read the whole file, mend the wrong words, add a sentence for each behaviour the change added". A line is short because it drops the fields, never because it drops the behaviour.
 - A rule line sets apart the small hands: the helpers of a few lines. Below it, each one is a single line — the pinned name, its inputs, and what it gives back — aligned so they read as a list.
 - No programming words. Say what the thing does in place of its class.
 
