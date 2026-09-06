@@ -5,7 +5,7 @@ description: Explain a code file in the rail shape, tie the words to real code w
 
 # decompile
 
-Two operations: **explain** and **map**. The state is one `human/` folder at the project root, created once with `human init`: one JSON map per code file, `explanation_<path>.json` with the `/` of the path written as `__`, and one map for the project itself, `human/human.json` — one entry whose pins point at the files, so a reader who opens the project has a top, plus the list of the project's files. A file is named by its path from the root, like `src/app.py`. The human CLI owns the `human/` folder — never edit a map by hand; every operation you need is a human command (`init`, `map`, `retext`, `undo`, `show`, `lines`, `sync`, `serve`). The map grows delta by delta: every map run appends one entry and never changes the entries before it.
+Two operations: **explain** and **map**. The state is one `human/` folder at the project root, created once with `human init`: one JSON map per code file, `explanation_<path>.json` with the `/` of the path written as `__`, and one map for the project itself, `human/human.json` — one entry whose pins point at the files, so a reader who opens the project has a top, plus the list of the project's files. A file is named by its path from the root, like `src/app.py`. The human CLI owns the `human/` folder — never edit a map by hand; every operation you need is a human command (`init`, `map`, `retext`, `undo`, `show`, `lines`, `sync`, `serve`, `train`). The map grows delta by delta: every map run appends one entry and never changes the entries before it. When a training session is open, the explain step writes three versions instead of one — see §7.
 
 ## How the user points at things
 
@@ -167,3 +167,31 @@ After a map run, report to the user in this order:
 4. Offer to take the next explanation.
 
 After a retext, an undo, or a sync, report what changed and confirm with `human show <code_file>`.
+
+## 7. Train
+
+`human/training/` holds the sessions, one JSON file each. `human train --open` starts a session; it stays open until `human train --close`. While a session is open, the explain step of §2 writes **three versions** of the same abstraction and registers them with `human train`, one row per file. The user reads them side by side in the feed — `/human/feed.html` on the same address as the reader — and picks one there. Nothing goes into the map before the close.
+
+The three versions, in this order:
+
+1. `best` — the shape the catalog gives this file today, by the rules of §2.
+2. `refinement` — for a new abstraction: the best shape after every correction the user validated in this project; leave it out when there is none. For a sync row the CLI fills this slot itself with the text the map holds, and the feed labels it `current`; write it only when the user asks for a rewrite of that text.
+3. `free` — the explanation that would help the user most, under no shape rule. Only the anchor rules of §1 hold.
+
+Each version goes in with its own call, the text on stdin like `human map`:
+
+```bash
+human train <code_file> --as best <<'EOF'
+<the text, verbatim>
+EOF
+```
+
+- `--kind create` is the default: a new abstraction. `--kind sync` is for a file whose code changed — run `human sync` first, so the middle slot holds the repaired text.
+- `--entry <id>` when the versions refine an entry that exists; the close runs `human retext`. `--block <name>` when the versions zoom on one block; the close runs `human map --block`. Neither: a first entry of an unmapped file, or a plainer layer whose pins are `e<id>:`.
+- The first call for a file makes the row and takes a full copy of the code; the next calls fill the other slots. Every call checks the anchors like `human map`, so a picked text can always be applied.
+- A second call with the same `--as` replaces that version — this is how a rewrite the user asks for goes in. The code must not have changed since the row was made.
+- After the last version, tell the user the feed address and stop.
+
+The user may leave a comment with a pick — why that version won. The comment lives in the row; read it when the user asks what a pick meant.
+
+`human train --close`, on the user's word, applies every picked row — `map` or `retext` — writes the new entry id into the row, and marks the session finished. When one apply fails, the session stays open; correct that row and close again. A row without a pick carries over: the next `human train --open` rebuilds it against the code and the map of that day, keeps every version whose anchors still hold, and drops the rest — write the dropped versions again.

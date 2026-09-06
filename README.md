@@ -40,4 +40,13 @@ human serve
 
 Open `http://localhost:8010/human/web.html`.
 
+## Train
+
+```bash
+human train --open    # start a session; /decompile now writes three versions per file
+human train --close   # map the versions you picked and finish the session
+```
+
+Pick in the feed at `http://localhost:8010/human/feed.html`: swipe sideways for the versions, down for the next file, and say why you picked if you want. A file you do not pick carries over to the next session. The sessions live in `human/training/`, one JSON per session, with a copy of the code and of the abstraction each row worked on.
+
 Everything the project writes lives in the `human/` folder — one `rm -rf human/` removes it completely.

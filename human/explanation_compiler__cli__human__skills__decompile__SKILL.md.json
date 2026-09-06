@@ -7,28 +7,18 @@
       "block_lines": [
         [
           1,
-          169
+          197
         ]
       ],
-      "text": "\u25cf  what the skill is                                          ([decompile](decompile))\n\u2502     Claude does two things: it abstracts a file, and it maps the\n\u2502     abstraction. The maps live in one folder at the root of the\n\u2502     project, made once, and the project has one record of its own.\n\u2502     Only the tool writes them. Each map run adds one abstraction\n\u2502     and changes none before it.\n\u2502\n\u25cf  how you point at things            ([how you point](How the user points at things))\n\u2502     You paste words, not numbers. Claude finds which abstraction\n\u2502     the words belong to.\n\u2502\n\u25cf  pins                                                        ([anchors](1. Anchors))\n\u2502     A pin ties a few words to a piece of the file, to the words of\n\u2502     an earlier abstraction, or to another file of the project, by\n\u2502     its path. The rules: pin the name, keep the words unique,\n\u2502     point at real things, make no circle. The rest of the text is\n\u2502     free.\n\u2502\n\u25cf  how claude abstracts                                        ([explain](2. Explain))\n\u2502     Who the reader is: someone who knows the subject, not the code.\n\u2502     The first abstraction covers the whole file. The rules of plain\n\u2502     words: define a word before it is used, say for what a thing\n\u2502     exists, keep the verbs. Show the abstraction, then stop.\n\u2502\n\u25cf  how claude maps                                                     ([map](3. Map))\n\u2502     On your word, the text goes to the tool as it is. The tool\n\u2502     checks the pins and adds one abstraction. A detailed one is\n\u2502     mapped before the simpler one that points into it.\n\u2502\n\u25cf  reword and take back                           ([rewrite](4. Rewrite and rollback))\n\u2502     New words for one abstraction, in place, keeping the pins that\n\u2502     others depend on. Undo removes the last one.\n\u2502\n\u25cf  when the file changes                              ([sync](5. Sync after a change))\n\u2502     Once per change. The tool carries the pins to the new lines;\n\u2502     claude mends only the words that went untrue.\n\u2502\n\u25cf  what claude reports                                           ([report](6. Report))\n      The new abstraction, the coverage, the warnings, and the offer\n      of the next one.",
+      "text": "The skill is the rulebook claude reads before it explains a code\nfile for you. Two loops run through it.\n\nThe everyday loop \u2014 one file, one abstraction:\n\n    you: \"how does server.py work?\"\n         claude reads the file and writes the abstraction\n         for a reader who knows the subject, not the code\n                                                          ([explain](2. Explain))\n         every name in it is a pin to a real thing:\n         a block of the file, an earlier abstraction,\n         or another file of the project\n                                                          ([anchors](1. Anchors))\n         claude shows the text and stops.\n    you: \"map it\"\n         the tool checks the pins and adds one entry     ([map](3. Map))\n         claude tells you what went in and what is still\n         not covered                                     ([report](6. Report))\n    you: paste a line back\n         claude finds the abstraction it belongs to\n                                      ([how you point](How the user points at things))\n         and rewords it in place, or undoes the last one\n                                            ([rewrite](4. Rewrite and rollback))\n\nThe training loop \u2014 one file, three abstractions, your pick:\n\n    you: human train --open\n         the rows you did not pick last time come along\n    you: \"how does server.py work?\"\n         claude writes three versions and gives them to\n         the tool, one call each                           ([train](7. Train))\n           best         the shape the catalog says\n           refinement   that shape after your corrections;\n                        for a changed file, the map's own text\n           free         whatever helps you most\n    you: \"rewrite the refinement\"\n         claude hands the same slot in again; the last text stays\n    you: open the feed, swipe, pick one per file,\n         say why if you want\n    you: human train --close\n         the tool maps every pick itself.\n\nWhen the code changes, both loops meet the same step: the tool\ncarries the pins to the new lines and claude mends only the words\nthat went untrue, once per change     ([sync](5. Sync after a change)).\n\nWhat the skill is, in one line: claude abstracts, the tool maps,\nand only the tool writes the maps            ([decompile](decompile)).",
       "anchors": [
         {
-          "words": "decompile",
-          "block": "decompile",
+          "words": "explain",
+          "block": "2. Explain",
           "lines": [
             [
-              6,
-              169
-            ]
-          ]
-        },
-        {
-          "words": "how you point",
-          "block": "How the user points at things",
-          "lines": [
-            [
-              10,
-              13
+              39,
+              106
             ]
           ]
         },
@@ -43,22 +33,32 @@
           ]
         },
         {
-          "words": "explain",
-          "block": "2. Explain",
-          "lines": [
-            [
-              39,
-              106
-            ]
-          ]
-        },
-        {
           "words": "map",
           "block": "3. Map",
           "lines": [
             [
               107,
               122
+            ]
+          ]
+        },
+        {
+          "words": "report",
+          "block": "6. Report",
+          "lines": [
+            [
+              160,
+              170
+            ]
+          ]
+        },
+        {
+          "words": "how you point",
+          "block": "How the user points at things",
+          "lines": [
+            [
+              10,
+              13
             ]
           ]
         },
@@ -73,6 +73,16 @@
           ]
         },
         {
+          "words": "train",
+          "block": "7. Train",
+          "lines": [
+            [
+              171,
+              197
+            ]
+          ]
+        },
+        {
           "words": "sync",
           "block": "5. Sync after a change",
           "lines": [
@@ -83,12 +93,12 @@
           ]
         },
         {
-          "words": "report",
-          "block": "6. Report",
+          "words": "decompile",
+          "block": "decompile",
           "lines": [
             [
-              160,
-              169
+              6,
+              197
             ]
           ]
         }
@@ -147,7 +157,16 @@
       159,
       161,
       163,
-      168
+      168,
+      170,
+      172,
+      174,
+      176,
+      180,
+      182,
+      188,
+      194,
+      196
     ]
   }
 }

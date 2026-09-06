@@ -3,6 +3,7 @@ import fnmatch
 import ipaddress
 import json
 import os
+import re
 import shutil
 import socket
 import sys
@@ -11,7 +12,7 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from . import cmd_map, decompiler
+from . import cmd_map, cmd_train, decompiler
 
 PKG = Path(__file__).parent
 
@@ -60,8 +61,9 @@ def cmd_init(a):
     root.mkdir(parents=True, exist_ok=True)
     h = root / "human"
     h.mkdir(exist_ok=True)
-    for name in ("web.html", "trees.js"):
+    for name in ("web.html", "trees.js", "feed.html"):
         shutil.copy(PKG / "reader" / name, h / name)
+    (h / "training").mkdir(exist_ok=True)
     map_path = h / "human.json"
     if map_path.exists():
         data = json.loads(map_path.read_text())
@@ -93,20 +95,41 @@ def fresh_map(root):
 class FreshHandler(SimpleHTTPRequestHandler):
     verbose = False
 
+    def send_json(self, status, payload):
+        body = json.dumps(payload).encode()
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
-        if self.path.split("?")[0] == "/human/human.json":
+        path = self.path.split("?")[0]
+        root = Path(self.directory)
+        if path == "/human/human.json":
             try:
-                body = json.dumps(fresh_map(Path(self.directory))).encode()
+                self.send_json(200, fresh_map(root))
             except (OSError, ValueError):
                 super().do_GET()
-                return
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            return
+        if path == "/human/training/":
+            self.send_json(200, cmd_train.list_sessions(root))
             return
         super().do_GET()
+
+    def do_POST(self):
+        m = re.fullmatch(r"/human/training/([^/]+)/pick", self.path.split("?")[0])
+        if not m:
+            self.send_json(404, {"error": "not found"})
+            return
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            body = json.loads(self.rfile.read(n) or b"{}")
+            status, out = cmd_train.pick(Path(self.directory), m.group(1),
+                                         body.get("row"), body.get("picked"), body.get("comment"))
+        except (ValueError, OSError) as e:
+            status, out = 400, str(e)
+        self.send_json(status, out if status == 200 else {"error": out})
 
     def end_headers(self):
         self.send_header("Cache-Control", "no-cache")
@@ -142,6 +165,7 @@ def cmd_serve(a):
     tip = tailnet_ip()
     if tip:
         print(f"http://{tip}:{a.port}/human/web.html")
+    print("the feed is at /human/feed.html on the same address")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
@@ -214,11 +238,20 @@ def main():
     y.add_argument("--old")
     y.add_argument("--stale", type=int)
     y.add_argument("--tries", type=int, default=4)
+    t = sub.add_parser("train")
+    t.add_argument("code_file", nargs="?")
+    t.add_argument("--open", action="store_true")
+    t.add_argument("--close", action="store_true")
+    t.add_argument("--as", dest="slot", choices=cmd_train.SLOTS)
+    t.add_argument("--kind", choices=("create", "sync"), default="create")
+    t.add_argument("--entry", type=int)
+    t.add_argument("--block")
+    t.add_argument("--text")
     a = ap.parse_args()
     {"init": cmd_init, "serve": cmd_serve, "skills": cmd_skills, "map": cmd_map_h,
      "retext": decompiler.cmd_retext, "undo": decompiler.cmd_undo,
      "show": decompiler.cmd_show, "lines": decompiler.cmd_lines,
-     "sync": decompiler.cmd_sync}[a.cmd](a)
+     "sync": decompiler.cmd_sync, "train": cmd_train.cmd_train}[a.cmd](a)
 
 
 if __name__ == "__main__":
