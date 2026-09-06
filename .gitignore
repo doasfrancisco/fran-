@@ -12,6 +12,7 @@ bash.exe.stackdump
 build/
 check-sort.png
 dist/
+feedback/
 graphify-out/
 human/training/
 human/trees.js

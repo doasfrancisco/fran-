@@ -38,11 +38,21 @@ In the reader, every explanation of a file is one folded header in a single list
 
 ## 2. Explain
 
-When the user asks how a file or a block works, read the file and write the explanation. The shape is the **rail** — for the whole file and for a zoom on one block alike. The folder `shapes/` next to this file is the catalog of validated shapes, each with its rules and one example; when the user has validated another shape for a project — like the skeleton, the file's own structure in plain words — that shape takes the whole-file place there.
+When the user asks how a file or a block works, read the file and write the explanation. The folder `shapes/` next to this file is the catalog of validated shapes, each with its rules and one example. The shape follows the kind of file:
+
+- a file with one real run — a web page, a script that runs top to bottom — takes the **rail** (`shapes/rail.md`, below);
+- a code file that is a set of functions takes the **sections** (`shapes/sections.md`): one head per block in story order, the inputs in the head, full sentences under it, the small helpers below a rule;
+- a file that only reads what the user types and hands it on takes the **desk** (`shapes/desk.md`): one head per command;
+- a rulebook — a skill, a procedure — takes the **dialogue** (`shapes/dialogue.md`): who says what, turn by turn;
+- a zoom on one block takes the rail.
+
+Read the shape file before you write. When the user has validated another shape for a project — like the skeleton, the file's own structure in plain words — that shape takes the whole-file place there.
 
 **Who the reader is.** Write for a reader who does not read code. The reader knows the domain of the file, not the vocabulary of programming. When the user validates a different level, keep that level for the rest of the session.
 
-**The first explanation of a code file covers the whole file, and its shape is the rail.** Write six to eight stages down a rail: the main run of the file, from the first thing the user does to the last thing the tool writes. Every later explanation is a zoom on one block or a plainer layer over the whole. A zoom is a rail too — its stages walk the block's own run, and its pins reach the block and the names inside it. A plainer layer is a rail whose heads point with `e<id>:` at the anchors of the entry below it.
+**The first explanation of a code file covers the whole file.** Every later explanation is a zoom on one block or a plainer layer over the whole. A zoom is a rail — its stages walk the block's own run, and its pins reach the block and the names inside it. A plainer layer is a rail whose heads point with `e<id>:` at the anchors of the entry below it.
+
+**The rail** is six to eight stages down a rail: the main run of the file, from the first thing the user does to the last thing the tool writes.
 
 ```
 ●  you ask for something                              ([the start](main))
@@ -92,9 +102,9 @@ The wording rules hold for every shape:
 
 **Definitions live in place.** When a concept needs a definition, put it at the point where the reader meets it — indented lines under the stage. Do not create a separate entry just to hold a definition.
 
-**The answer is never prose.** Even when the user says "explain simpler", answer with a simpler rail, not with paragraphs. One short read-me line under the text is fine.
+**The answer is never prose.** Even when the user says "explain simpler", answer with a simpler text in the same shape, not with paragraphs. One short read-me line under the text is fine.
 
-**A markdown file.** The blocks of a `.md` file are its headings. A document takes the rail like a code file: one stage per section, the head an act in plain words, the pin at the real heading on the right.
+**A markdown file.** The blocks of a `.md` file are its headings. A document that tells a procedure takes the dialogue. Any other document takes the rail like a code file: one stage per section, the head an act in plain words, the pin at the real heading on the right.
 
 **A web page.** A `.html` file's blocks come from two places: every tag that appears once — `head`, `style`, `body`, `main`, `script` — and every named function inside a `<script>`, nested ones too. A zoom on the look takes one line per visual role — say what the reader sees, never how the rule finds its target.
 
@@ -178,18 +188,20 @@ The three versions, in this order:
 2. `refinement` — for a new abstraction: the best shape after every correction the user validated in this project; leave it out when there is none. For a sync row the CLI fills this slot itself with the text the map holds, and the feed labels it `current`; write it only when the user asks for a rewrite of that text.
 3. `free` — the explanation that would help the user most, under no shape rule. Only the anchor rules of §1 hold.
 
-Each version goes in with its own call, the text on stdin like `human map`:
+Each version goes in with its own call, the text on stdin like `human map`, and names the shape it follows:
 
 ```bash
-human train <code_file> --as best <<'EOF'
+human train <code_file> --as best --shape sections <<'EOF'
 <the text, verbatim>
 EOF
 ```
 
+- `--shape` is the name of the catalog shape the text follows — `rail`, `sections`, `desk`, `dialogue`, `skeleton`. A `free` text that follows no shape leaves it out. The feed shows the shape beside the slot name, so a pick says which shape won, not only which slot.
+
 - `--kind create` is the default: a new abstraction. `--kind sync` is for a file whose code changed — run `human sync` first, so the middle slot holds the repaired text.
 - `--entry <id>` when the versions refine an entry that exists; the close runs `human retext`. `--block <name>` when the versions zoom on one block; the close runs `human map --block`. Neither: a first entry of an unmapped file, or a plainer layer whose pins are `e<id>:`.
 - The first call for a file makes the row and takes a full copy of the code; the next calls fill the other slots. Every call checks the anchors like `human map`, so a picked text can always be applied.
-- A second call with the same `--as` replaces that version — this is how a rewrite the user asks for goes in. The code must not have changed since the row was made.
+- A second call with the same `--as` puts the new text on top and keeps the earlier text in the version's history — this is how a rewrite the user asks for goes in. The feed shows the rewrites of a card under a small picker, `v1 v2 v3`, so the user can read how the text came to be; the pick and the close take the latest. The code must not have changed since the row was made.
 - After the last version, tell the user the feed address and stop.
 
 The user may leave a comment with a pick — why that version won. The comment lives in the row; read it when the user asks what a pick meant.

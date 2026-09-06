@@ -7,18 +7,26 @@
       "block_lines": [
         [
           1,
-          307
+          329
         ]
       ],
-      "text": "import the clock, json, the scratch files, a lock, and the map and engine of human\n\nSLOTS = best, refinement, free \u2014 the three versions a row can hold, one slot each\nLOCK  = one lock, so two picks never write at once\n\n\n[cmd_open](cmd_open)(root)\n    root is the project folder, the one that holds human/.\n    You type `human train --open` anywhere in the project.\n    The tool refuses while another session is still open. A session is one JSON\n    file in human/training/, named by the moment it opened; it holds rows, and it\n    stays open until the close writes \"finished\" into it.\n    The tool brings the rows nobody picked last time along, then makes the new\n    session file, so every pick of this round has one home.\n\n[carry](carry)(root)\n    The tool looks at the newest session and takes every row with no pick\n    and no apply. Each one is made again; the ones that cannot be made stay behind.\n    When there is no session yet, nothing comes along.\n\n[carry_row](carry_row)(root, old, old_sid)\n    old is one row of the last session; old_sid is that session's id.\n    The tool makes the row again against the code and the map as they are today,\n    so the copy of the code is fresh. Each written version whose pins still hold\n    comes over; the others are dropped, and the tool says their names so claude\n    writes them again. A sync row's middle comes fresh from the map, unless it was a rewrite.\n    A file that is gone, or a row that cannot be made, stays in the old session.\n\n[cmd_add](cmd_add)(a, root)\n    a is what you typed: the file, --as, --kind, --entry, --block, --text.\n    Claude pipes one text in: `human train <file> --as best`.\n    The tool needs --as, an open session, and a real file.\n    It finds the row of this file, or makes it, and refuses when the file\n    changed since the row was made. It checks the text, puts it in its slot \u2014\n    a slot written twice keeps the last text \u2014 and saves.\n    It says the row number, the kind, the level, the entry, the pins, and the slots filled.\n\n[new_row](new_row)(a, root, code_path, code_name, data, src)\n    code_path is the file on disk; code_name is its path from the root;\n    data is its map; src is its text.\n    A row is one file's turn in a session: which file, what the picked text will\n    do to its map, a copy of the code, the three versions, and the pick.\n    The level says where the picked text lands. The tool reads it from what you\n    typed: --kind sync takes the entry given, or the whole-file one, and lands on\n    \"same\" \u2014 the text replaces that entry's text; --entry lands on \"same\" too;\n    --block lands on \"above\" \u2014 a new zoom on one block; neither is \"first\" on an\n    empty map \u2014 the first entry of the file \u2014 else \"below\" \u2014 a plainer layer\n    under the whole-file entry.\n    The row it makes holds the file, the kind, the path of the map, the entry,\n    the level, the block, a copy of the old text, a copy of the code, three empty\n    slots, no pick, no comment, not applied, and the times.\n    A sync row gets the old text into its middle slot.\n\n[whole_file_entry](whole_file_entry)(data, code_name)\n    The tool finds the lowest entry whose block is the file itself.\n    It exists only so a sync row without --entry knows which entry it refines.\n\n[check_text](check_text)(text, row, data, spans, root)\n    text is one version; spans are the blocks of the file with their lines.\n    The tool checks the pins as the map would: every pin names a real block or\n    a real earlier entry, a text that replaces an entry keeps the pins other\n    entries depend on, and no circle forms. A failed check stops with the reason.\n    This is why a picked text can always be applied later.\n\n[pick](pick)(root, sid, row, slot, comment)\n    The feed sends sid, the session id in its address; row, the row's place in\n    the list from 0; slot, the version you picked, or none to take a pick back;\n    and comment, your reason, or none.\n    Outside the lock the tool refuses a session it does not have, a slot it does\n    not know, and a comment that is not text. Under the lock it refuses a\n    finished session, a row it does not have, and an empty slot; then it writes\n    the pick, the comment, and the time.\n    It gives back a status and the row, or a status and the error text.\n\n[cmd_close](cmd_close)(root)\n    You type `human train --close`. The tool needs an open session.\n    It takes the picked rows in order, \"below\" rows last, so a plainer layer\n    finds the entry it points at. When a file changed since its row was made,\n    the tool marks the row and says so. It applies each row; on a failure it\n    remembers the row and goes on.\n    Any failure leaves the session open and names the rows. With none, the tool\n    marks the session finished, says the counts, and says that the rows without\n    a pick carry over.\n\n[apply_row](apply_row)(root, row)\n    A \"same\" row rewrites its entry with retext and gives the entry's id back.\n    Any other row maps a new entry, with the block for a zoom, and gives the new id back.\n    The close writes that id into the row, so the row and the map can be joined later.\n\n[run_with_text](run_with_text)(fn, text, ...)\n    fn is the old command, map or retext; text is the picked version.\n    The tool writes the text to a scratch file, calls the command with it,\n    and removes the file. It exists only so a picked text reaches the old\n    commands the way a typed text would.\n\n[cmd_train](cmd_train)(a)\n    The door. --open and --close allow no file and find the project from\n    where you stand. A hand-in needs a file and finds the project from the file.\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nthe small hands\n\n[now](now)()                              the moment as text, with the machine's own time zone\n[training_dir](training_dir)(root)        the folder human/training/ under the root\n[session_paths](session_paths)(root)      every session file in that folder, newest first\n[load_session](load_session)(path)        one session file read as data\n[save_session](save_session)(path, data)  stamps \"edited\" with the moment, writes the file\n[open_session](open_session)(root)        the path and the data of the newest session not\n                                          finished; none, none when every session is closed\n[summary](summary)(path, data)            the short form of one session: id, times, finished,\n                                          and how many rows, picks, applied\n[list_sessions](list_sessions)(root)      one summary per session \u2014 the list the feed reads first",
+      "text": "import the clock, json, the scratch files, a lock, and two neighbours:\n[the map run](compiler/cli/human/cmd_map.py) that saves an entry, and\n[the engine](compiler/cli/human/decompiler.py) that checks pins and rewords an entry\n\nSLOTS = best, refinement, free \u2014 the three versions a row can hold, one slot each\nLOCK  = one lock, so two picks never write at once\n\n\n[cmd_open](cmd_open)(root)\n    root is the project folder, the one that holds human/.\n    You type `human train --open` anywhere in the project.\n    The tool refuses while another session is still open. A session is one JSON\n    file in human/training/, named by the moment it opened; it holds rows, and it\n    stays open until the close writes \"finished\" into it.\n    The tool brings the rows nobody picked last time along, then makes the new\n    session file, so every pick of this round has one home.\n\n[carry](carry)(root)\n    The tool looks at the newest session and takes every row with no pick\n    and no apply. Each one is made again; the ones that cannot be made stay behind.\n    When there is no session yet, nothing comes along.\n\n[carry_row](carry_row)(root, old, old_sid)\n    old is one row of the last session; old_sid is that session's id.\n    The tool makes the row again against the code and the map as they are today,\n    so the copy of the code is fresh. Each written version whose pins still hold\n    comes over with its history; the others are dropped, and the tool says their\n    names so claude writes them again. A sync row's middle comes fresh from the\n    map, unless it was a rewrite.\n    A file that is gone, or a row that cannot be made, stays in the old session.\n\n[cmd_add](cmd_add)(a, root)\n    a is what you typed: the file, --as, --shape, --kind, --entry, --block, --text.\n    Claude pipes one text in: `human train <file> --as best --shape sections`.\n    The tool needs --as, an open session, and a real file.\n    It finds the row of this file, or makes it, and refuses when the file\n    changed since the row was made. It checks the text and makes it the version\n    of that slot \u2014 with the shape it follows and the moment \u2014 and saves.\n    A slot written twice keeps the new text on top and the old one in its history.\n    It says the row number, the kind, the level, the entry, the shape, the pins,\n    the slots filled, and how many earlier texts a rewrite keeps.\n\n[new_row](new_row)(a, root, code_path, code_name, data, src)\n    code_path is the file on disk; code_name is its path from the root;\n    data is its map; src is its text.\n    A row is one file's turn in a session: which file, what the picked text will\n    do to its map, a copy of the code, the three versions, and the pick.\n    The level says where the picked text lands. The tool reads it from what you\n    typed: --kind sync takes the entry given, or the whole-file one, and lands on\n    \"same\" \u2014 the text replaces that entry's text; --entry lands on \"same\" too;\n    --block lands on \"above\" \u2014 a new zoom on one block; neither is \"first\" on an\n    empty map \u2014 the first entry of the file \u2014 else \"below\" \u2014 a plainer layer\n    under the whole-file entry.\n    The row it makes holds the file, the kind, the path of the map, the entry,\n    the level, the block, a copy of the old text, a copy of the code, three empty\n    slots, no pick, no comment, not applied, and the times.\n    A sync row gets the old text into its middle slot, as a version with no shape.\n\n[whole_file_entry](whole_file_entry)(data, code_name)\n    The tool finds the lowest entry whose block is the file itself.\n    It exists only so a sync row without --entry knows which entry it refines.\n\n[check_text](check_text)(text, row, data, spans, root)\n    text is one version; spans are the blocks of the file with their lines.\n    The tool checks the pins as the map would: every pin names a real block or\n    a real earlier entry, a text that replaces an entry keeps the pins other\n    entries depend on, and no circle forms. A failed check stops with the reason.\n    This is why a picked text can always be applied later.\n\n[pick](pick)(root, sid, row, slot, comment)\n    The feed sends sid, the session id in its address; row, the row's place in\n    the list from 0; slot, the version you picked, or none to take a pick back;\n    and comment, your reason, or none.\n    Outside the lock the tool refuses a session it does not have, a slot it does\n    not know, and a comment that is not text. Under the lock it refuses a\n    finished session, a row it does not have, and an empty slot; then it writes\n    the pick, the comment, and the time.\n    It gives back a status and the row, or a status and the error text.\n\n[cmd_close](cmd_close)(root)\n    You type `human train --close`. The tool needs an open session.\n    It takes the picked rows in order, \"below\" rows last, so a plainer layer\n    finds the entry it points at. When a file changed since its row was made,\n    the tool marks the row and says so. It applies each row; on a failure it\n    remembers the row and goes on.\n    Any failure leaves the session open and names the rows. With none, the tool\n    marks the session finished, says the counts, and says that the rows without\n    a pick carry over.\n\n[apply_row](apply_row)(root, row)\n    The tool takes the latest text of the picked version.\n    A \"same\" row rewrites its entry with retext and gives the entry's id back.\n    Any other row maps a new entry, with the block for a zoom, and gives the new id back.\n    The close writes that id into the row, so the row and the map can be joined later.\n\n[run_with_text](run_with_text)(fn, text, ...)\n    fn is the old command, map or retext; text is the picked version.\n    The tool writes the text to a scratch file, calls the command with it,\n    and removes the file. It exists only so a picked text reaches the old\n    commands the way a typed text would.\n\n[cmd_train](cmd_train)(a)\n    The door. --open and --close allow no file and find the project from\n    where you stand. A hand-in needs a file and finds the project from the file.\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nthe small hands\n\n[now](now)()                              the moment as text, with the machine's own time zone\n[as_version](as_version)(v)               a plain text of an old session read as a version;\n                                          a version, or none, comes back as it is\n[version_text](version_text)(v)           the text inside a version; none when there is none\n[version](version)(text, shape, old)      a new version: the text, its shape, the moment, and\n                                          the old version pushed onto its history\n[training_dir](training_dir)(root)        the folder human/training/ under the root\n[session_paths](session_paths)(root)      every session file in that folder, newest first\n[load_session](load_session)(path)        one session file read as data\n[save_session](save_session)(path, data)  stamps \"edited\" with the moment, writes the file\n[open_session](open_session)(root)        the path and the data of the newest session not\n                                          finished; none, none when every session is closed\n[summary](summary)(path, data)            the short form of one session: id, times, finished,\n                                          and how many rows, picks, applied\n[list_sessions](list_sessions)(root)      one summary per session \u2014 the list the feed reads first",
       "anchors": [
+        {
+          "words": "the map run",
+          "file": "compiler/cli/human/cmd_map.py"
+        },
+        {
+          "words": "the engine",
+          "file": "compiler/cli/human/decompiler.py"
+        },
         {
           "words": "cmd_open",
           "block": "cmd_open",
           "lines": [
             [
-              108,
-              119
+              125,
+              136
             ]
           ]
         },
@@ -27,8 +35,8 @@
           "block": "carry",
           "lines": [
             [
-              98,
-              105
+              115,
+              122
             ]
           ]
         },
@@ -37,8 +45,8 @@
           "block": "carry_row",
           "lines": [
             [
-              63,
-              95
+              80,
+              112
             ]
           ]
         },
@@ -47,8 +55,8 @@
           "block": "cmd_add",
           "lines": [
             [
-              197,
-              234
+              214,
+              256
             ]
           ]
         },
@@ -57,8 +65,8 @@
           "block": "new_row",
           "lines": [
             [
-              151,
-              183
+              168,
+              200
             ]
           ]
         },
@@ -67,8 +75,8 @@
           "block": "whole_file_entry",
           "lines": [
             [
-              146,
-              148
+              163,
+              165
             ]
           ]
         },
@@ -77,8 +85,8 @@
           "block": "check_text",
           "lines": [
             [
-              186,
-              194
+              203,
+              211
             ]
           ]
         },
@@ -87,8 +95,8 @@
           "block": "pick",
           "lines": [
             [
-              122,
-              143
+              139,
+              160
             ]
           ]
         },
@@ -97,8 +105,8 @@
           "block": "cmd_close",
           "lines": [
             [
-              259,
-              294
+              281,
+              316
             ]
           ]
         },
@@ -107,8 +115,8 @@
           "block": "apply_row",
           "lines": [
             [
-              247,
-              256
+              269,
+              278
             ]
           ]
         },
@@ -117,8 +125,8 @@
           "block": "run_with_text",
           "lines": [
             [
-              237,
-              244
+              259,
+              266
             ]
           ]
         },
@@ -127,8 +135,8 @@
           "block": "cmd_train",
           "lines": [
             [
-              297,
-              307
+              319,
+              329
             ]
           ]
         },
@@ -143,12 +151,42 @@
           ]
         },
         {
+          "words": "as_version",
+          "block": "as_version",
+          "lines": [
+            [
+              21,
+              24
+            ]
+          ]
+        },
+        {
+          "words": "version_text",
+          "block": "version_text",
+          "lines": [
+            [
+              27,
+              29
+            ]
+          ]
+        },
+        {
+          "words": "version",
+          "block": "version",
+          "lines": [
+            [
+              32,
+              35
+            ]
+          ]
+        },
+        {
           "words": "training_dir",
           "block": "training_dir",
           "lines": [
             [
-              21,
-              22
+              38,
+              39
             ]
           ]
         },
@@ -157,8 +195,8 @@
           "block": "session_paths",
           "lines": [
             [
-              25,
-              29
+              42,
+              46
             ]
           ]
         },
@@ -167,8 +205,8 @@
           "block": "load_session",
           "lines": [
             [
-              32,
-              33
+              49,
+              50
             ]
           ]
         },
@@ -177,8 +215,8 @@
           "block": "save_session",
           "lines": [
             [
-              36,
-              38
+              53,
+              55
             ]
           ]
         },
@@ -187,8 +225,8 @@
           "block": "open_session",
           "lines": [
             [
-              41,
-              48
+              58,
+              65
             ]
           ]
         },
@@ -197,8 +235,8 @@
           "block": "summary",
           "lines": [
             [
-              51,
-              56
+              68,
+              73
             ]
           ]
         },
@@ -207,8 +245,8 @@
           "block": "list_sessions",
           "lines": [
             [
-              59,
-              60
+              76,
+              77
             ]
           ]
         }
@@ -224,42 +262,48 @@
       16,
       19,
       20,
-      23,
-      24,
+      25,
+      26,
       30,
       31,
-      34,
-      35,
-      39,
+      36,
+      37,
       40,
-      49,
-      50,
+      41,
+      47,
+      48,
+      51,
+      52,
+      56,
       57,
-      58,
-      61,
-      62,
-      96,
-      97,
-      106,
-      107,
-      120,
-      121,
-      144,
-      145,
-      149,
-      150,
-      184,
-      185,
-      195,
-      196,
-      235,
-      236,
-      245,
-      246,
+      66,
+      67,
+      74,
+      75,
+      78,
+      79,
+      113,
+      114,
+      123,
+      124,
+      137,
+      138,
+      161,
+      162,
+      166,
+      167,
+      201,
+      202,
+      212,
+      213,
       257,
       258,
-      295,
-      296
+      267,
+      268,
+      279,
+      280,
+      317,
+      318
     ]
   }
 }

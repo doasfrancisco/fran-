@@ -227,8 +227,11 @@ def import_names(lines):
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             names.update(n.name.split(".")[0] for n in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
-            names.add(node.module.split(".")[0])
+        elif isinstance(node, ast.ImportFrom) and node.level <= 1:
+            if node.module:
+                names.add(node.module.split(".")[0])
+            elif node.level == 1:
+                names.update(n.name for n in node.names)
     return names
 
 

@@ -30,8 +30,14 @@
   .card.on .slot{background:var(--pick);}
   .dots{margin-left:auto;letter-spacing:.3em;color:var(--faint);}
   .dots b{color:var(--text);}
+  .shape{font-size:11px;letter-spacing:.06em;color:var(--call);}
   .copy{font-size:11px;font-weight:700;letter-spacing:.08em;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer;}
   .copy:hover{color:var(--text);}
+  .vers{display:flex;align-items:center;gap:6px;margin-top:10px;font-size:11px;color:var(--muted);}
+  .vers button{font-size:11px;font-weight:700;letter-spacing:.06em;padding:3px 9px;}
+  .vers button.on{background:var(--pick);border-color:var(--pick);color:#fff;}
+  .vers .at{margin-left:auto;color:var(--faint);}
+  .body.old{border-style:dashed;color:var(--muted);}
   textarea{flex:1;min-width:0;font:inherit;font-size:13px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);resize:none;height:44px;}
   .why{font-size:13px;color:var(--text);font-style:italic;}
   .body{flex:1;min-height:0;overflow:auto;margin-top:14px;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-radius:12px;font-family:var(--mono);font-size:13px;line-height:1.62;white-space:pre-wrap;overflow-wrap:anywhere;}
@@ -53,9 +59,27 @@
 <script>
 var SLOTS=["best","refinement","free"], ANCH=/\[([^\[\]]+)\]\(([^()]+)\)/g;
 var deck=document.getElementById("deck"), sel=document.getElementById("pickses");
-var sessions=[], cur=null, sig={}, asking=null;
+var sessions=[], cur=null, sig={}, asking=null, viewing={};
 
 function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+
+function versionOf(r,slot){
+  var v=r.versions[slot];
+  if(v===null) return null;
+  if(typeof v==="string") return {text:v,shape:null,at:null,history:[]};
+  return v;
+}
+
+function textsOf(v){
+  return v.history.concat([{text:v.text,shape:v.shape,at:v.at}]);
+}
+
+function shownText(r,i,slot){
+  var v=versionOf(r,slot);
+  if(!v) return null;
+  var all=textsOf(v), n=viewing[i+":"+slot];
+  return all[n===undefined?all.length-1:Math.min(n,all.length-1)].text;
+}
 
 function textHtml(t){
   var out="", last=0, m;
@@ -107,7 +131,7 @@ function renderTop(){
 }
 
 function cardHtml(r,i,slot,k){
-  var t=r.versions[slot], on=r.picked===slot;
+  var v=versionOf(r,slot), t=v?v.text:null, on=r.picked===slot;
   var dots=SLOTS.map(function(s,j){return j===k?"<b>●</b>":"●";}).join("");
   var label=slot;
   if(r.kind==="sync"&&slot==="refinement"&&t===r.before) label="current";
@@ -115,9 +139,19 @@ function cardHtml(r,i,slot,k){
     +(r.entry!==null?' · entry '+r.entry:"")+(r.block&&r.level==="above"?' · '+esc(r.block):"")
     +(r.carried_from?' · carried':"")
     +'</span><span class="slot">'+esc(label)+'</span>'
+    +(v&&v.shape?'<span class="shape">'+esc(v.shape)+'</span>':"")
     +(t===null?"":'<button class="copy" data-copy="'+i+'" data-slot="'+slot+'">copy</button>')
     +'<span class="dots">'+dots+'</span></div>';
-  var body=t===null?'<div class="body empty">not written yet</div>':'<div class="body">'+textHtml(t)+'</div>';
+  var vers="", shown=t, old=false;
+  if(v&&v.history.length){
+    var all=textsOf(v), n=viewing[i+":"+slot];
+    if(n===undefined||n>=all.length) n=all.length-1;
+    shown=all[n].text; old=n<all.length-1;
+    vers='<div class="vers"><span>rewrites</span>'+all.map(function(x,j){
+      return '<button class="v'+(j===n?" on":"")+'" data-view="'+i+'" data-slot="'+slot+'" data-n="'+j+'">v'+(j+1)+'</button>';
+    }).join("")+'<span class="at">'+(old?"earlier text":"latest — the pick takes this one")+(all[n].at?" · "+esc(all[n].at.slice(0,16).replace("T"," ")):"")+'</span></div>';
+  }
+  var body=t===null?'<div class="body empty">not written yet</div>':'<div class="body'+(old?" old":"")+'">'+textHtml(shown)+'</div>';
   var why=on&&r.comment?'<span class="why">“'+esc(r.comment)+'”</span>':"";
   var foot, hint='<span class="hint">◂ ▸ versions · ▾ next file</span>';
   if(cur.finished||r.applied)
@@ -131,7 +165,7 @@ function cardHtml(r,i,slot,k){
   else
     foot='<button class="pick" data-row="'+i+'" data-slot="'+slot+'"'+(t===null?" disabled":"")+'>pick this one</button>'
       +(r.picked?'<span class="note">picked: '+esc(r.picked)+'</span>':"")+hint;
-  return '<div class="card'+(on?" on":"")+'">'+head+body+'<div class="foot">'+foot+'</div></div>';
+  return '<div class="card'+(on?" on":"")+'">'+head+vers+body+'<div class="foot">'+foot+'</div></div>';
 }
 
 function rerenderRow(i){
@@ -188,7 +222,14 @@ deck.addEventListener("click",function(ev){
   var b=ev.target.closest("button");
   if(!b||!cur) return;
   if(b.hasAttribute("data-copy")){
-    copyText(cur.rows[+b.getAttribute("data-copy")].versions[b.getAttribute("data-slot")],b);
+    var ci=+b.getAttribute("data-copy");
+    copyText(shownText(cur.rows[ci],ci,b.getAttribute("data-slot")),b);
+    return;
+  }
+  if(b.hasAttribute("data-view")){
+    var vi=+b.getAttribute("data-view");
+    viewing[vi+":"+b.getAttribute("data-slot")]=+b.getAttribute("data-n");
+    rerenderRow(vi);
     return;
   }
   if(b.hasAttribute("data-cancel")){

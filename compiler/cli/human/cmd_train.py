@@ -18,6 +18,23 @@ def now():
     return datetime.now().astimezone().isoformat(timespec="seconds")
 
 
+def as_version(v):
+    if v is None or isinstance(v, dict):
+        return v
+    return {"text": v, "shape": None, "at": None, "history": []}
+
+
+def version_text(v):
+    v = as_version(v)
+    return v["text"] if v else None
+
+
+def version(text, shape, old=None):
+    old = as_version(old)
+    history = old["history"] + [{k: old[k] for k in ("text", "shape", "at")}] if old else []
+    return {"text": text, "shape": shape, "at": now(), "history": history}
+
+
 def training_dir(root):
     return root / "human" / "training"
 
@@ -79,15 +96,15 @@ def carry_row(root, old, old_sid):
     row["carried_from"] = old_sid
     kept, dropped = [], []
     for s in SLOTS:
-        text = old["versions"][s]
-        if text is None or (s == "refinement" and row["kind"] == "sync" and text == old["before"]):
+        v = as_version(old["versions"][s])
+        if v is None or (s == "refinement" and row["kind"] == "sync" and v["text"] == old["before"]):
             continue
         try:
-            check_text(text, row, data, spans, root)
+            check_text(v["text"], row, data, spans, root)
         except AssertionError:
             dropped.append(s)
             continue
-        row["versions"][s] = text
+        row["versions"][s] = v
         kept.append(s)
     note = "the code changed; " if src != old["code"] else ""
     print(f"carried {old['file']} from {old_sid}: {note}kept {', '.join(kept) or 'nothing'}"
@@ -179,7 +196,7 @@ def new_row(a, root, code_path, code_name, data, src):
            "versions": {s: None for s in SLOTS}, "picked": None, "comment": None, "applied": None,
            "created": stamp, "edited": stamp}
     if a.kind == "sync":
-        row["versions"]["refinement"] = entry["text"]
+        row["versions"]["refinement"] = version(entry["text"], None)
     return row
 
 
@@ -219,7 +236,8 @@ def cmd_add(a, root):
         anchors = check_text(text, row, data, spans, root)
     except AssertionError as e:
         sys.exit(str(e))
-    row["versions"][a.slot] = text
+    old = row["versions"][a.slot]
+    row["versions"][a.slot] = version(text, a.shape, old)
     row["edited"] = now()
     if made:
         session["rows"].append(row)
@@ -228,7 +246,11 @@ def cmd_add(a, root):
     word = "new row" if made else "row"
     print(f"{word} {idx}: {code_name}, {row['kind']}, {row['level']}"
           + (f" (entry {row['entry']})" if row["entry"] is not None else "")
-          + f", {a.slot}: {decompiler.anchor_counts(anchors)}")
+          + f", {a.slot}" + (f" as {a.shape}" if a.shape else "")
+          + f": {decompiler.anchor_counts(anchors)}")
+    if old is not None:
+        n = len(row["versions"][a.slot]["history"])
+        print(f"{a.slot} rewritten; {n} earlier text{'s' if n > 1 else ''} kept in its history")
     filled = [s for s in SLOTS if row["versions"][s] is not None]
     print(f"versions: {', '.join(filled)}")
     print(f"wrote {path}")
@@ -246,7 +268,7 @@ def run_with_text(fn, text, **kw):
 
 def apply_row(root, row):
     code_path = root / row["file"]
-    text = row["versions"][row["picked"]]
+    text = version_text(row["versions"][row["picked"]])
     if row["level"] == "same":
         run_with_text(decompiler.cmd_retext, text, code_file=str(code_path), id=row["entry"])
         return row["entry"]

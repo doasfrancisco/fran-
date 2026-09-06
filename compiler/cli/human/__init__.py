@@ -243,6 +243,7 @@ def main():
     t.add_argument("--open", action="store_true")
     t.add_argument("--close", action="store_true")
     t.add_argument("--as", dest="slot", choices=cmd_train.SLOTS)
+    t.add_argument("--shape")
     t.add_argument("--kind", choices=("create", "sync"), default="create")
     t.add_argument("--entry", type=int)
     t.add_argument("--block")

@@ -7,10 +7,10 @@
       "block_lines": [
         [
           1,
-          228
+          269
         ]
       ],
-      "text": "\u25cf  you open the feed                                            ([the page](html))\n  \u2502     You open /human/feed.html on the same address as the reader.\n  \u2502     The page is dark and fills the screen, one card at a time,\n  \u2502     the way a video feed does ([the look](style)). Its title\n  \u2502     says Human \u00b7 feed ([the title](title)).\n  \u2502\n  \u25cf  the page finds the session                                      ([the load](load))\n  \u2502     It asks the tool for the list of sessions and takes the one\n  \u2502     you named in the address, else the newest one still open,\n  \u2502     else the newest of all ([the choice](wanted)). Then it asks\n  \u2502     for that session's file and draws it, and asks again every\n  \u2502     five seconds, so a row claude adds while you read appears\n  \u2502     on its own.\n  \u2502\n  \u25cf  the top bar says where you are                                ([the bar](renderTop))\n  \u2502     A list to switch sessions, OPEN or FINISHED, and the count:\n  \u2502     how many files, how many picked.\n  \u2502\n  \u25cf  each file is one row, each version one card                 ([the rows](renderRows))\n  \u2502     Swipe down for the next file. Swipe sideways for the next\n  \u2502     version of the same file \u2014 three cards in a strip\n  \u2502     ([the strip](rowHtml)). When the tool changes one row, only\n  \u2502     that row is redrawn ([one row](rerenderRow)), and it keeps\n  \u2502     the card you were on.\n  \u2502\n  \u25cf  a card shows one version                                       ([the card](cardHtml))\n  \u2502     At the top: the file, the kind of row, where the text will go,\n  \u2502     \"carried\" for a row from an earlier session, and the name of\n  \u2502     the version \u2014 \"current\" for the middle of a sync row while it\n  \u2502     still holds the map's own text. A \"copy\" button stands there\n  \u2502     when the slot has text. Under it the text, with every pinned\n  \u2502     word marked ([the marks](textHtml)); an empty slot says\n  \u2502     \"not written yet\".\n  \u2502\n  \u25cf  you pick, and say why if you want                              ([the script](script))\n        One tap on \"pick this one\" opens a box for the reason; you may\n        leave it empty. \"pick\" sends the row, the version and the\n        reason to the tool ([the send](sendPick)); \"cancel\" closes the\n        box. The answer is the row as the tool now keeps it: the\n        picked card turns blue, the two others say which one you\n        picked, and your reason stands under the text. A tap on the\n        picked card takes the pick back.\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  when the session is finished\n     Every card says what happened to its row: the pick, the reason,\n     and the entry the pick became. Nothing can be picked any more.\n\n  when you take the text away                                    ([the copy](copyText))\n     One tap on \"copy\" puts that version's text on the clipboard and\n     the button says \"copied\" for a moment \u2014 also on a plain http\n     address, where the browser's own clipboard door stays shut.\n\n  when there is nothing to show                          ([the empty page](renderEmpty))\n     No session yet, or the tool not reachable: one line in the\n     middle of the screen says which.\n\n  when you switch sessions\n     The list in the top bar writes the session into the address,\n     so a reload \u2014 or a link \u2014 opens the same one.\n\n  a word of text stays a word                                     ([the escape](esc))\n     Anything the text holds is shown as it is, never read as part\n     of the page.",
+      "text": "\u25cf  you open the feed                                            ([the page](html))\n  \u2502     You open /human/feed.html on the same address as the reader.\n  \u2502     The page is dark and fills the screen, one card at a time,\n  \u2502     the way a video feed does ([the look](style)). Its title\n  \u2502     says Human \u00b7 feed ([the title](title)).\n  \u2502\n  \u25cf  the page finds the session                                      ([the load](load))\n  \u2502     It asks the tool for the list of sessions and takes the one\n  \u2502     you named in the address, else the newest one still open,\n  \u2502     else the newest of all ([the choice](wanted)). Then it asks\n  \u2502     for that session's file and draws it, and asks again every\n  \u2502     five seconds, so a row claude adds while you read appears\n  \u2502     on its own.\n  \u2502\n  \u25cf  the top bar says where you are                                ([the bar](renderTop))\n  \u2502     A list to switch sessions, OPEN or FINISHED, and the count:\n  \u2502     how many files, how many picked.\n  \u2502\n  \u25cf  each file is one row, each version one card                 ([the rows](renderRows))\n  \u2502     Swipe down for the next file. Swipe sideways for the next\n  \u2502     version of the same file \u2014 three cards in a strip\n  \u2502     ([the strip](rowHtml)). When the tool changes one row, only\n  \u2502     that row is redrawn ([one row](rerenderRow)), and it keeps\n  \u2502     the card you were on.\n  \u2502\n  \u25cf  a card shows one version                                       ([the card](cardHtml))\n  \u2502     At the top: the file, the kind of row, where the text will go,\n  \u2502     \"carried\" for a row from an earlier session, the name of the\n  \u2502     version \u2014 \"current\" for the middle of a sync row while it\n  \u2502     still holds the map's own text \u2014 and, in amber, the shape the\n  \u2502     text follows. A \"copy\" button stands there when the slot has\n  \u2502     text. Under it the text, with every pinned word marked\n  \u2502     ([the marks](textHtml)); an empty slot says \"not written yet\".\n  \u2502\n  \u25cf  a rewritten version shows its history                     ([the versions](versionOf))\n  \u2502     A version keeps every text it replaced. When there is one, a\n  \u2502     row of v1, v2 \u2026 stands over the text ([the list](textsOf)); the\n  \u2502     last one is the latest, and the pick takes that one. A tap on\n  \u2502     a number shows that text, dashed and grey when it is not the\n  \u2502     last ([the shown text](shownText)), with the moment it came \u2014\n  \u2502     so you can read how the rewrite happened.\n  \u2502\n  \u25cf  you pick, and say why if you want                              ([the script](script))\n        One tap on \"pick this one\" opens a box for the reason; you may\n        leave it empty. \"pick\" sends the row, the version and the\n        reason to the tool ([the send](sendPick)); \"cancel\" closes the\n        box. The answer is the row as the tool now keeps it: the\n        picked card turns blue, the two others say which one you\n        picked, and your reason stands under the text. A tap on the\n        picked card takes the pick back.\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  when the session is finished\n     Every card says what happened to its row: the pick, the reason,\n     and the entry the pick became. Nothing can be picked any more.\n\n  when you take the text away                                    ([the copy](copyText))\n     One tap on \"copy\" puts the text you see on the clipboard and\n     the button says \"copied\" for a moment \u2014 also on a plain http\n     address, where the browser's own clipboard door stays shut.\n\n  when there is nothing to show                          ([the empty page](renderEmpty))\n     No session yet, or the tool not reachable: one line in the\n     middle of the screen says which.\n\n  when you switch sessions\n     The list in the top bar writes the session into the address,\n     so a reload \u2014 or a link \u2014 opens the same one.\n\n  a word of text stays a word                                     ([the escape](esc))\n     Anything the text holds is shown as it is, never read as part\n     of the page.",
       "anchors": [
         {
           "words": "the page",
@@ -18,7 +18,7 @@
           "lines": [
             [
               2,
-              228
+              269
             ]
           ]
         },
@@ -28,7 +28,7 @@
           "lines": [
             [
               8,
-              48
+              54
             ]
           ]
         },
@@ -47,8 +47,8 @@
           "block": "load",
           "lines": [
             [
-              77,
-              89
+              101,
+              113
             ]
           ]
         },
@@ -57,8 +57,8 @@
           "block": "wanted",
           "lines": [
             [
-              70,
-              75
+              94,
+              99
             ]
           ]
         },
@@ -67,8 +67,8 @@
           "block": "renderTop",
           "lines": [
             [
-              97,
-              107
+              121,
+              131
             ]
           ]
         },
@@ -77,8 +77,8 @@
           "block": "renderRows",
           "lines": [
             [
-              168,
-              185
+              202,
+              219
             ]
           ]
         },
@@ -87,8 +87,8 @@
           "block": "rowHtml",
           "lines": [
             [
-              164,
-              166
+              198,
+              200
             ]
           ]
         },
@@ -97,8 +97,8 @@
           "block": "rerenderRow",
           "lines": [
             [
-              137,
-              144
+              171,
+              178
             ]
           ]
         },
@@ -107,8 +107,8 @@
           "block": "cardHtml",
           "lines": [
             [
-              109,
-              135
+              133,
+              169
             ]
           ]
         },
@@ -117,8 +117,38 @@
           "block": "textHtml",
           "lines": [
             [
-              60,
-              68
+              84,
+              92
+            ]
+          ]
+        },
+        {
+          "words": "the versions",
+          "block": "versionOf",
+          "lines": [
+            [
+              66,
+              71
+            ]
+          ]
+        },
+        {
+          "words": "the list",
+          "block": "textsOf",
+          "lines": [
+            [
+              73,
+              75
+            ]
+          ]
+        },
+        {
+          "words": "the shown text",
+          "block": "shownText",
+          "lines": [
+            [
+              77,
+              82
             ]
           ]
         },
@@ -127,8 +157,8 @@
           "block": "script",
           "lines": [
             [
-              53,
-              226
+              59,
+              267
             ]
           ]
         },
@@ -137,8 +167,8 @@
           "block": "sendPick",
           "lines": [
             [
-              155,
-              162
+              189,
+              196
             ]
           ]
         },
@@ -147,8 +177,8 @@
           "block": "copyText",
           "lines": [
             [
-              146,
-              153
+              180,
+              187
             ]
           ]
         },
@@ -157,8 +187,8 @@
           "block": "renderEmpty",
           "lines": [
             [
-              91,
-              95
+              115,
+              119
             ]
           ]
         },
@@ -167,8 +197,8 @@
           "block": "esc",
           "lines": [
             [
-              58,
-              58
+              64,
+              64
             ]
           ]
         }
@@ -178,22 +208,25 @@
   "not_covered": {
     "code_lines": [],
     "blank_lines": [
-      57,
-      59,
-      69,
+      63,
+      65,
+      72,
       76,
-      90,
-      96,
-      108,
-      136,
-      145,
-      154,
-      163,
-      167,
-      186,
-      213,
-      217,
-      223
+      83,
+      93,
+      100,
+      114,
+      120,
+      132,
+      170,
+      179,
+      188,
+      197,
+      201,
+      220,
+      254,
+      258,
+      264
     ]
   }
 }
