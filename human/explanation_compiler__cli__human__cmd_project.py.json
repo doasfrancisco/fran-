@@ -1,0 +1,535 @@
+{
+  "code_file": "compiler/cli/human/cmd_project.py",
+  "explanations": [
+    {
+      "id": 1,
+      "block": "compiler/cli/human/cmd_project.py",
+      "block_lines": [
+        [
+          1,
+          511
+        ]
+      ],
+      "text": "import the line differ, json, the pattern matcher, the shell, and\n[the map run](compiler/cli/human/cmd_map.py) and [the tool](compiler/cli/human/decompiler.py) \u2014 the neighbours whose pieces this file calls\n\nWORD        = project \u2014 the word you type where a file path goes: human map project, human show project, human sync project\nCROSS_RE    = the look of a pin into another file's map: the file's path, a colon, e and the entry number, a colon, the anchor words\nSYNC_PROMPT = the letter to claude when the project changed: read the changed files, mend the words the change made wrong, add a sentence for each behaviour the change added, keep every pin\n\n\nthe map of the project \u2014 what it is\n\nA project entry is a telling of the whole, kept in human/project.json. It has no\nlines of its own: its pins reach the files, one block of a file, one anchor of a\nfile's entry, or an earlier project entry, and the lines come through them.\nEvery command below takes the word project where a file path goes.\n\n[cmd_map_project](cmd_map_project)(a)\n    a is what you typed after human map project: the text on stdin, and no --block,\n    because the project map has no blocks of its own.\n    The tool checks every pin, refuses a circle, and appends one entry. It prints how\n    many pins reach files, entries of other maps, and earlier entries of this map \u2014 and\n    how many files of the project have a pin.\n\n[build_anchors](build_anchors)(text, data, self_id, root)\n    text is the entry's text; data is the project map; self_id is the entry's own number.\n    The tool walks the pins of the text one by one. A pin whose target reads like\n    app/main.py:e1:the start is [a pin into another file's map](cross_anchor);\n    every other pin \u2014 a file, a block of a file, an earlier entry of this map \u2014 goes to\n    [the shared pin checker](compiler/cli/human/decompiler.py:build_anchors) one at a time.\n    Two pins with the same words are refused here, because the shared checker sees\n    only one pin at a time.\n\n[cross_anchor](cross_anchor)(words, fname, eid, aw, root)\n    fname is the file's path from the root; eid is the entry number; aw is the anchor words.\n    The tool refuses the pin when the file is not in the project, when the file has no map,\n    when the map has no such entry, or when the entry has no anchor with those words.\n    A good pin is stored with the file, the entry, and the anchor words, so the reader\n    can walk from the project telling to that file, that entry, that anchor.\n\n[cmd_retext](cmd_retext)(a)\n    a is the entry number and the new text.\n    The tool replaces the text of one project entry the way it does for a file: the pins\n    other project entries point at must survive, no circle may appear, and when the text\n    changed, the project entries that point into it are marked stale.\n\n[cmd_undo](cmd_undo)(a)\n    The tool removes the last project entry \u2014 unless another project entry points into it.\n\n[cmd_show](cmd_show)(a)\n    The tool prints every project entry with its pin count, and a stale mark that names\n    which file's entry changed. Then the warnings: a pin whose file is gone, whose block is\n    gone, whose entry or anchor in another map is gone ([the cross check](check_cross)),\n    whose stored lines are old. Last, [the coverage](print_coverage): the files of the\n    project that have a pin, out of all of them, and the names of the files without one.\n\n\nthe two doors the file maps knock on\n\n[pins_into](pins_into)(root, code_name, eid)\n    The anchor words of entry eid of the file code_name that the project map points at.\n    A retext, a sync, or a stale repair of that file adds these to the words it must keep,\n    and an undo of that entry is refused while the set is not empty. Empty when there is\n    no project map.\n\n[mark_stale](mark_stale)(root, code_name, eid, old_text)\n    The tool marks every project entry that points into entry eid of code_name stale,\n    with the file, the entry, and the old text, and gives back their numbers. The file's\n    retext and sync call it after a text changed, so the project telling knows a fact\n    under it moved.\n\n\nthe project changed\n\n[cmd_sync](cmd_sync)(a)\n    The old state of the project is git HEAD, so --old is refused. With --stale the tool\n    goes to [the stale repair](repair_stale) instead.\n    The tool asks git for [the files that changed](changed_files), re-resolves every pin\n    ([the second look](re_resolve): file pins, block pins, and pins into other maps \u2014\n    a gone target is broken), and names the candidates: the entries that pin a changed\n    file, plus the entries with a broken pin. No candidate: the map is saved, no claude call.\n    Otherwise it writes the letter: the root, the changed files with their full paths,\n    [their diff](project_diff), [the broken pins](broken_note) \u2014 each with the anchors its\n    entry holds now, so a reworded anchor can be retargeted \u2014, the files of the project,\n    the candidate texts, and the words other entries need.\n    [The asking](ask) runs claude up to --tries times; each answer is [rebuilt on a copy](rebuild)\n    and refused when a pin is dead, a needed anchor is gone, or an entry that is not a\n    candidate was rewritten. Then the changed texts are reported line by line, the entries\n    that point into a changed one are marked stale, and the map is saved.\n\n[repair_stale](repair_stale)(a, root, data)\n    The tool finds the stale entry and its parent: an entry of a file's map when the stale\n    mark names a file, an earlier project entry otherwise. The letter is the shared stale\n    letter of [the file repair](compiler/cli/human/decompiler.py:repair_stale) with one more line\n    when the parent lives in a file: where it lives, and that a pin at it names the file,\n    the entry, and the anchor words. The answer must keep the words other entries need\n    and make no circle; the mended text replaces the old one, the stale mark goes, and the\n    project entries that point into this one are marked stale in turn.\n\n[snapshot](snapshot)(root, kind)\n    What a training row keeps of the project: for a new telling, a copy of every file of\n    the project; for a sync row, the changed files, their copies, and their diff. The row\n    refuses a new version when this changed since the row was made.\n\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nthe small hands\n\n[root_of](root_of)()                        the project root, climbing from where you stand\n[map_path](map_path)(root)                  human/project.json\n[load](load)(root)                          the project map, or an empty one\n[save](save)(root, data)                    writes the project map\n[files_of](files_of)(root)                  the file list of human/human.json\n[map_of](map_of)(root, fname)               the map of one file, or nothing when it has none\n[entry_of](entry_of)(data, eid)             one entry of a map by its number\n[counts](counts)(anchors)                   the pin count line: into files, into other maps, into earlier entries\n[check_cross](check_cross)(x, root)         why a pin into another map is dead, or nothing when it holds\n[git](git)(root, *args)                     runs git at the root and gives back its exit code and output\n[old_text_of](old_text_of)(root, rel)       the file as git HEAD holds it, empty for a new file\n[changed_files](changed_files)(root, data)  the files the project knows \u2014 listed or pinned \u2014 that git sees changed, added, or gone\n[project_diff](project_diff)(root, changed) one unified diff over the changed files, HEAD against the disk\n[re_resolve](re_resolve)(data, root)        the shared second look, plus a check of every pin into another map\n[broken_note](broken_note)(broken, root)    the broken pins for the letter, each with the anchors its entry holds now\n[rebuild](rebuild)(trial, texts, cand, root) puts the answered texts into a copy of the map and checks every pin and every needed word\n[ask](ask)(prompt, root, tries, check)      claude up to tries times, with the refusal sent back each time\n[cmd_lines](cmd_lines)(a)                   refused: the project has no lines of its own\n[print_coverage](print_coverage)(root, data) files with a pin out of all files, and the ones without",
+      "anchors": [
+        {
+          "words": "the map run",
+          "file": "compiler/cli/human/cmd_map.py"
+        },
+        {
+          "words": "the tool",
+          "file": "compiler/cli/human/decompiler.py"
+        },
+        {
+          "words": "cmd_map_project",
+          "block": "cmd_map_project",
+          "lines": [
+            [
+              151,
+              168
+            ]
+          ]
+        },
+        {
+          "words": "build_anchors",
+          "block": "build_anchors",
+          "lines": [
+            [
+              94,
+              108
+            ]
+          ]
+        },
+        {
+          "words": "a pin into another file's map",
+          "block": "cross_anchor",
+          "lines": [
+            [
+              81,
+              91
+            ]
+          ]
+        },
+        {
+          "words": "the shared pin checker",
+          "file": "compiler/cli/human/decompiler.py",
+          "block": "build_anchors",
+          "lines": [
+            [
+              364,
+              387
+            ]
+          ]
+        },
+        {
+          "words": "cross_anchor",
+          "block": "cross_anchor",
+          "lines": [
+            [
+              81,
+              91
+            ]
+          ]
+        },
+        {
+          "words": "cmd_retext",
+          "block": "cmd_retext",
+          "lines": [
+            [
+              171,
+              197
+            ]
+          ]
+        },
+        {
+          "words": "cmd_undo",
+          "block": "cmd_undo",
+          "lines": [
+            [
+              200,
+              212
+            ]
+          ]
+        },
+        {
+          "words": "cmd_show",
+          "block": "cmd_show",
+          "lines": [
+            [
+              227,
+              273
+            ]
+          ]
+        },
+        {
+          "words": "the cross check",
+          "block": "check_cross",
+          "lines": [
+            [
+              215,
+              224
+            ]
+          ]
+        },
+        {
+          "words": "the coverage",
+          "block": "print_coverage",
+          "lines": [
+            [
+              143,
+              148
+            ]
+          ]
+        },
+        {
+          "words": "pins_into",
+          "block": "pins_into",
+          "lines": [
+            [
+              111,
+              117
+            ]
+          ]
+        },
+        {
+          "words": "mark_stale",
+          "block": "mark_stale",
+          "lines": [
+            [
+              120,
+              132
+            ]
+          ]
+        },
+        {
+          "words": "cmd_sync",
+          "block": "cmd_sync",
+          "lines": [
+            [
+              441,
+              498
+            ]
+          ]
+        },
+        {
+          "words": "the stale repair",
+          "block": "repair_stale",
+          "lines": [
+            [
+              385,
+              438
+            ]
+          ]
+        },
+        {
+          "words": "the files that changed",
+          "block": "changed_files",
+          "lines": [
+            [
+              290,
+              299
+            ]
+          ]
+        },
+        {
+          "words": "the second look",
+          "block": "re_resolve",
+          "lines": [
+            [
+              312,
+              320
+            ]
+          ]
+        },
+        {
+          "words": "their diff",
+          "block": "project_diff",
+          "lines": [
+            [
+              302,
+              309
+            ]
+          ]
+        },
+        {
+          "words": "the broken pins",
+          "block": "broken_note",
+          "lines": [
+            [
+              323,
+              337
+            ]
+          ]
+        },
+        {
+          "words": "The asking",
+          "block": "ask",
+          "lines": [
+            [
+              366,
+              382
+            ]
+          ]
+        },
+        {
+          "words": "rebuilt on a copy",
+          "block": "rebuild",
+          "lines": [
+            [
+              340,
+              363
+            ]
+          ]
+        },
+        {
+          "words": "repair_stale",
+          "block": "repair_stale",
+          "lines": [
+            [
+              385,
+              438
+            ]
+          ]
+        },
+        {
+          "words": "the file repair",
+          "file": "compiler/cli/human/decompiler.py",
+          "block": "repair_stale",
+          "lines": [
+            [
+              793,
+              858
+            ]
+          ]
+        },
+        {
+          "words": "snapshot",
+          "block": "snapshot",
+          "lines": [
+            [
+              501,
+              507
+            ]
+          ]
+        },
+        {
+          "words": "root_of",
+          "block": "root_of",
+          "lines": [
+            [
+              50,
+              51
+            ]
+          ]
+        },
+        {
+          "words": "map_path",
+          "block": "map_path",
+          "lines": [
+            [
+              54,
+              55
+            ]
+          ]
+        },
+        {
+          "words": "load",
+          "block": "load",
+          "lines": [
+            [
+              58,
+              59
+            ]
+          ]
+        },
+        {
+          "words": "save",
+          "block": "save",
+          "lines": [
+            [
+              62,
+              63
+            ]
+          ]
+        },
+        {
+          "words": "files_of",
+          "block": "files_of",
+          "lines": [
+            [
+              66,
+              67
+            ]
+          ]
+        },
+        {
+          "words": "map_of",
+          "block": "map_of",
+          "lines": [
+            [
+              70,
+              74
+            ]
+          ]
+        },
+        {
+          "words": "entry_of",
+          "block": "entry_of",
+          "lines": [
+            [
+              77,
+              78
+            ]
+          ]
+        },
+        {
+          "words": "counts",
+          "block": "counts",
+          "lines": [
+            [
+              135,
+              140
+            ]
+          ]
+        },
+        {
+          "words": "check_cross",
+          "block": "check_cross",
+          "lines": [
+            [
+              215,
+              224
+            ]
+          ]
+        },
+        {
+          "words": "git",
+          "block": "git",
+          "lines": [
+            [
+              280,
+              282
+            ]
+          ]
+        },
+        {
+          "words": "old_text_of",
+          "block": "old_text_of",
+          "lines": [
+            [
+              285,
+              287
+            ]
+          ]
+        },
+        {
+          "words": "changed_files",
+          "block": "changed_files",
+          "lines": [
+            [
+              290,
+              299
+            ]
+          ]
+        },
+        {
+          "words": "project_diff",
+          "block": "project_diff",
+          "lines": [
+            [
+              302,
+              309
+            ]
+          ]
+        },
+        {
+          "words": "re_resolve",
+          "block": "re_resolve",
+          "lines": [
+            [
+              312,
+              320
+            ]
+          ]
+        },
+        {
+          "words": "broken_note",
+          "block": "broken_note",
+          "lines": [
+            [
+              323,
+              337
+            ]
+          ]
+        },
+        {
+          "words": "rebuild",
+          "block": "rebuild",
+          "lines": [
+            [
+              340,
+              363
+            ]
+          ]
+        },
+        {
+          "words": "ask",
+          "block": "ask",
+          "lines": [
+            [
+              366,
+              382
+            ]
+          ]
+        },
+        {
+          "words": "cmd_lines",
+          "block": "cmd_lines",
+          "lines": [
+            [
+              276,
+              277
+            ]
+          ]
+        },
+        {
+          "words": "print_coverage",
+          "block": "print_coverage",
+          "lines": [
+            [
+              143,
+              148
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "not_covered": {
+    "code_lines": [],
+    "blank_lines": [
+      7,
+      9,
+      12,
+      14,
+      16,
+      18,
+      20,
+      22,
+      24,
+      26,
+      28,
+      30,
+      32,
+      34,
+      43,
+      45,
+      48,
+      49,
+      52,
+      53,
+      56,
+      57,
+      60,
+      61,
+      64,
+      65,
+      68,
+      69,
+      75,
+      76,
+      79,
+      80,
+      92,
+      93,
+      109,
+      110,
+      118,
+      119,
+      133,
+      134,
+      141,
+      142,
+      149,
+      150,
+      169,
+      170,
+      198,
+      199,
+      213,
+      214,
+      225,
+      226,
+      274,
+      275,
+      278,
+      279,
+      283,
+      284,
+      288,
+      289,
+      300,
+      301,
+      310,
+      311,
+      321,
+      322,
+      338,
+      339,
+      364,
+      365,
+      383,
+      384,
+      414,
+      424,
+      439,
+      440,
+      478,
+      485,
+      499,
+      500,
+      508,
+      509
+    ]
+  }
+}

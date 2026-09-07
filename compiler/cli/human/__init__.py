@@ -12,7 +12,7 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from . import cmd_map, cmd_train, decompiler
+from . import cmd_map, cmd_project, cmd_train, decompiler
 
 PKG = Path(__file__).parent
 
@@ -78,6 +78,11 @@ def cmd_init(a):
     data["files"] = [f for f in found if not is_ignored(f, patterns)]
     data.pop("ignored", None)
     map_path.write_text(json.dumps(data, indent=2) + "\n")
+    if not cmd_project.map_path(root).exists():
+        cmd_project.save(root, cmd_project.load(root))
+    if (root / cmd_project.WORD).exists():
+        print(f"warning: a file named {cmd_project.WORD} sits at the root; the word reaches the project "
+              f"map, the file needs a path like ./{cmd_project.WORD}")
     hidden = len(found) - len(data["files"])
     tail = f", {hidden} ignored" if hidden else ""
     print(f"project {root.name}: {len(data['files'])} files{tail}")
@@ -249,6 +254,9 @@ def main():
     t.add_argument("--block")
     t.add_argument("--text")
     a = ap.parse_args()
+    if a.cmd in cmd_project.COMMANDS and a.code_file == cmd_project.WORD:
+        cmd_project.COMMANDS[a.cmd](a)
+        return
     {"init": cmd_init, "serve": cmd_serve, "skills": cmd_skills, "map": cmd_map_h,
      "retext": decompiler.cmd_retext, "undo": decompiler.cmd_undo,
      "show": decompiler.cmd_show, "lines": decompiler.cmd_lines,

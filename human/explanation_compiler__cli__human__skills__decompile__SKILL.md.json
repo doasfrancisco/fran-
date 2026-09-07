@@ -7,18 +7,18 @@
       "block_lines": [
         [
           1,
-          209
+          224
         ]
       ],
-      "text": "The skill is the rulebook claude reads before it explains a code\nfile for you. Two loops run through it.\n\nThe everyday loop \u2014 one file, one abstraction:\n\n    you: \"how does server.py work?\"\n         claude looks at the kind of file and takes the shape\n         the catalog gives it \u2014 the rail for a page with one run,\n         the sections for a file of functions, the desk for a\n         file that only hands your line on, the dialogue for a\n         rulebook \u2014 and writes the abstraction for a reader who\n         knows the subject, not the code\n                                                          ([explain](2. Explain))\n         every name in it is a pin to a real thing:\n         a block of the file, an earlier abstraction,\n         or another file of the project\n                                                          ([anchors](1. Anchors))\n         claude shows the text and stops.\n    you: \"map it\"\n         the tool checks the pins and adds one entry     ([map](3. Map))\n         claude tells you what went in and what is still\n         not covered                                     ([report](6. Report))\n    you: paste a line back\n         claude finds the abstraction it belongs to\n                                      ([how you point](How the user points at things))\n         and rewords it in place, or undoes the last one\n                                            ([rewrite](4. Rewrite and rollback))\n\nThe training loop \u2014 one file, three abstractions, your pick:\n\n    you: human train --open\n         the rows you did not pick last time come along\n    you: \"how does server.py work?\"\n         claude writes three versions and gives them to\n         the tool, one call each, each with the name of\n         the shape it follows                              ([train](7. Train))\n           best         the shape the catalog says\n           refinement   that shape after your corrections;\n                        for a changed file, the map's own text\n           free         whatever helps you most\n    you: \"rewrite the refinement\"\n         claude hands the same slot in again; the earlier text\n         stays under a v1 v2 v3 picker, and the pick takes the newest\n    you: open the feed, swipe, pick one per file,\n         say why if you want\n    you: human train --close\n         the tool maps every pick itself.\n\nWhen the code changes, both loops meet the same step: the tool\ncarries the pins to the new lines, claude mends the words that went\nuntrue and adds a sentence for each behaviour the change added,\nonce per change                       ([sync](5. Sync after a change)).\n\nWhat the skill is, in one line: claude abstracts, the tool maps,\nand only the tool writes the maps            ([decompile](decompile)).",
+      "text": "The skill is the rulebook claude reads before it explains a code\nfile for you. Three loops run through it.\n\nThe everyday loop \u2014 one file, one abstraction:\n\n    you: \"how does server.py work?\"\n         claude looks at the kind of file and takes the shape\n         the catalog gives it \u2014 the rail for a page with one run,\n         the sections for a file of functions, the desk for a\n         file that only hands your line on, the dialogue for a\n         rulebook \u2014 and writes the abstraction for a reader who\n         knows the subject, not the code\n                                                          ([explain](2. Explain))\n         every name in it is a pin to a real thing:\n         a block of the file, an earlier abstraction,\n         or another file of the project\n                                                          ([anchors](1. Anchors))\n         claude shows the text and stops.\n    you: \"map it\"\n         the tool checks the pins and adds one entry     ([map](3. Map))\n         claude tells you what went in and what is still\n         not covered                                     ([report](6. Report))\n    you: paste a line back\n         claude finds the abstraction it belongs to\n                                      ([how you point](How the user points at things))\n         and rewords it in place, or undoes the last one\n                                            ([rewrite](4. Rewrite and rollback))\n\nThe training loop \u2014 one file, three abstractions, your pick:\n\n    you: human train --open\n         the rows you did not pick last time come along\n    you: \"how does server.py work?\"\n         claude writes three versions and gives them to\n         the tool, one call each, each with the name of\n         the shape it follows                              ([train](7. Train))\n           best         the shape the catalog says\n           refinement   that shape after your corrections;\n                        for a changed file, the map's own text\n           free         whatever helps you most\n    you: \"the whole project this time\"\n         the same three versions, over a copy of every file\n    you: \"rewrite the refinement\"\n         claude hands the same slot in again; the earlier text\n         stays under a v1 v2 v3 picker, and the pick takes the latest\n    you: open the feed, swipe, pick one per file,\n         say why if you want\n    you: human train --close\n         the tool maps every pick itself.\n\nThe project loop \u2014 the whole project, not one file:\n\n    you: \"how does the project work?\"\n         claude reads the top entry of the project's own map and\n         the front door of every file, then writes the telling of\n         the whole \u2014 the shape is claude's to pick, and claude says\n         which one it took                       ([the whole](8. The project))\n         its names pin to a file, to one block of a file, and to a\n         name inside a file's abstraction, so you walk down from\n         the project to the file to the code\n         claude shows the text and stops.\n    you: \"map it\"\n         the tool keeps it in a map of its own, apart from the maps\n         of the files                         ([the project map](3. Map))\n         claude tells you what went in, and which files no line\n         of the telling reaches yet\n                                            ([the same report](6. Report))\n\nWhen the code changes, every loop meets the same step: the tool\ncarries the pins to the new lines, claude mends the words that went\nuntrue and adds a sentence for each behaviour the change added,\nonce per change                       ([sync](5. Sync after a change)).\nThe telling of the whole is mended the same way, and a mended file\nabstraction leaves the project telling stale until you ask for its\nrepair. Two texts a sync never rewords: your own words, mapped as\nyours, and a plainer layer that holds no pin into the code. Both\ntake the new fact one layer down, on your word \u2014 your own words\nnot even then: the tool says so, and you write them again or\nleave them.\n\nWhat the skill is, in one line: claude abstracts, the tool maps,\nand only the tool writes the maps            ([decompile](decompile)).",
       "anchors": [
         {
           "words": "explain",
           "block": "2. Explain",
           "lines": [
             [
-              39,
-              116
+              40,
+              117
             ]
           ]
         },
@@ -28,7 +28,7 @@
           "lines": [
             [
               14,
-              38
+              39
             ]
           ]
         },
@@ -37,8 +37,8 @@
           "block": "3. Map",
           "lines": [
             [
-              117,
-              132
+              118,
+              134
             ]
           ]
         },
@@ -47,8 +47,8 @@
           "block": "6. Report",
           "lines": [
             [
-              170,
-              180
+              175,
+              185
             ]
           ]
         },
@@ -67,8 +67,8 @@
           "block": "4. Rewrite and rollback",
           "lines": [
             [
-              133,
-              146
+              135,
+              148
             ]
           ]
         },
@@ -77,8 +77,38 @@
           "block": "7. Train",
           "lines": [
             [
-              181,
-              209
+              186,
+              215
+            ]
+          ]
+        },
+        {
+          "words": "the whole",
+          "block": "8. The project",
+          "lines": [
+            [
+              216,
+              224
+            ]
+          ]
+        },
+        {
+          "words": "the project map",
+          "block": "3. Map",
+          "lines": [
+            [
+              118,
+              134
+            ]
+          ]
+        },
+        {
+          "words": "the same report",
+          "block": "6. Report",
+          "lines": [
+            [
+              175,
+              185
             ]
           ]
         },
@@ -87,8 +117,8 @@
           "block": "5. Sync after a change",
           "lines": [
             [
-              147,
-              169
+              149,
+              174
             ]
           ]
         },
@@ -98,7 +128,7 @@
           "lines": [
             [
               6,
-              209
+              224
             ]
           ]
         }
@@ -115,62 +145,66 @@
       13,
       15,
       17,
-      22,
-      24,
-      34,
-      36,
-      38,
-      40,
-      42,
-      48,
-      50,
-      52,
-      54,
-      56,
-      71,
-      77,
-      79,
-      88,
-      90,
-      92,
-      102,
-      104,
-      106,
-      108,
-      110,
-      112,
-      114,
-      116,
-      118,
-      120,
-      126,
-      132,
+      23,
+      25,
+      35,
+      37,
+      39,
+      41,
+      43,
+      49,
+      51,
+      53,
+      55,
+      57,
+      72,
+      78,
+      80,
+      89,
+      91,
+      93,
+      103,
+      105,
+      107,
+      109,
+      111,
+      113,
+      115,
+      117,
+      119,
+      121,
+      127,
       134,
       136,
-      142,
+      138,
       144,
       146,
       148,
       150,
-      154,
-      159,
-      161,
-      163,
-      167,
-      169,
-      171,
-      173,
+      152,
+      156,
+      162,
+      164,
+      166,
+      168,
+      172,
+      174,
+      176,
       178,
-      180,
-      182,
-      184,
-      186,
-      190,
-      192,
-      198,
-      200,
-      206,
-      208
+      183,
+      185,
+      187,
+      189,
+      191,
+      195,
+      197,
+      203,
+      205,
+      211,
+      213,
+      215,
+      217,
+      219
     ]
   }
 }

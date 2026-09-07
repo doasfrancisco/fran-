@@ -2,7 +2,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import decompiler
+from . import cmd_project, decompiler
 
 
 def load_map(map_path, name):
@@ -47,6 +47,9 @@ def map_project(a, root):
 
 
 def cmd_map(a):
+    if a.code_file == cmd_project.WORD:
+        cmd_project.cmd_map_project(a)
+        return
     code_path = Path(a.code_file).resolve()
     root = decompiler.find_root(code_path)
     if code_path.is_dir():
@@ -69,6 +72,8 @@ def cmd_map(a):
         sys.exit(str(e))
     record = {"id": eid, "block": block, "block_lines": block_lines,
               "text": text, "anchors": anchors}
+    if getattr(a, "verbatim", None):
+        record["verbatim"] = True
     data["explanations"].append(record)
     missing, blank = decompiler.recompute(data, lines)
     map_path.write_text(json.dumps(data, indent=2) + "\n")

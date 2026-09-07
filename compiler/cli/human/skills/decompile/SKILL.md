@@ -19,22 +19,23 @@ An explanation ties itself to real things with inline anchors, written like a Ma
 - `[the checking](e1:the tool checks)` — the words point at an **anchor of an earlier explanation**: entry 1's anchor whose bracketed words are `the tool checks`.
 - `[the map command](src/cmd_map.py)` — the words point at **another file of the project**, named by its path from the root. In the reader the pin leads to that file's whole-file entry, the front door of the file.
 - `[the check of the pins](src/cmd_map.py:parse_target)` — the words point at **one block of another file**, for the precise case where the sentence names one exact thing that lives elsewhere.
+- `[the gates](src/cmd_map.py:e1:the checking)` — the words point at **an anchor of an entry of another file's map**: entry 1 of `src/cmd_map.py`, its anchor `the checking`. This pin lives in the project map only (§8).
 
 The rules:
 
 - Anchor the words that name the thing. The rest of the line stays plain text.
 - Anchor words are unique inside one text. Two anchors cannot share the same bracketed words.
 - A block target must be a real block of the file. human refuses a dead name.
-- An `e<id>:` target must name an existing entry and existing anchor words inside it. It cannot make a circle. It never crosses a file border — a plainer telling stays inside its file, so a change in one file makes only that file's map stale.
+- An `e<id>:` target must name an existing entry and existing anchor words inside it. It cannot make a circle. It never crosses a file border — a plainer telling stays inside its file, so a change in one file makes only that file's map and the project map stale.
 - A file target must name a real file of the project by its path from the root; a `file:block` target must also name a real block of that file. A block name of the own file wins over a file name when both exist.
-- The pins of `human/human.json` are file and `file:block` pins only. human refuses the rest.
+- The pins of `human/human.json` are file and `file:block` pins only. human refuses the rest. The pins of `human/project.json` are file, `file:block`, `file:e<id>:words`, and `e<id>:` into its own entries.
 - `human show` warns when a `.py` file imports another mapped file and the whole-file entry has no pin to it. It is a warning, not an error — the code holds a connection the map does not show.
 - When code moves to another file, its telling moves with it. The old entry keeps one short stage with a pin to the new file — never the sentences. A sentence lives in one file's map only; every other map points at it. `human show .` at the root warns when the same line stands in the maps of two files.
 - Everything else in the text is free. The layout carries no meaning: drawings, arrows, boxes, and rules between groups are all allowed, because the anchors — not the columns — carry the structure.
 
 Layering runs one way: a plainer explanation anchors into a more detailed one with `e<id>:` targets, and holds no line numbers of its own — it inherits them through the chain. The detailed explanation anchors into the code with block targets. So the map reads: explanation → anchor → block → lines.
 
-In the reader, every explanation of a file is one folded header in a single list, the most detailed first and the entry nothing points at last — a zoom on a block sits above the whole-file entry, and a plainer telling that points into the whole-file entry sits below it. A click on a header folds or unfolds that entry. A click on an anchor whose target has an entry jumps to that entry and unfolds it. An anchor with no entry behind it shows muted and does not react. `human.json` shows as a file in the file tree and opens first. The reader runs with `human serve` from anywhere in the project. A click on a cross-file pin switches to that file and jumps — to its whole-file entry for a file pin, to the block's entry for a `file:block` pin. A `file:block` pin whose block has no entry yet shows muted with the block name after the words, and does not react. When the target file has no map, a file pin still switches and shows the raw lines under "no map for this file yet".
+In the reader, every explanation of a file is one folded header in a single list, the most detailed first and the entry nothing points at last — a zoom on a block sits above the whole-file entry, and a plainer telling that points into the whole-file entry sits below it. A click on a header folds or unfolds that entry. A click on an anchor whose target has an entry jumps to that entry and unfolds it. An anchor with no entry behind it shows muted and does not react. `human.json` shows as a file in the file tree and opens first. The reader runs with `human serve` from anywhere in the project. A click on a cross-file pin switches to that file and jumps — to its whole-file entry for a file pin, to the block's entry for a `file:block` pin. A `file:block` pin whose block has no entry yet shows muted with the block name after the words, and does not react. When the target file has no map, a file pin still switches and shows the raw lines under "no map for this file yet". `project.json` shows as a file under `human.json`; a click on one of its `file:e<id>:words` pins switches to that file, unfolds the entry, and lights the anchor.
 
 ## 2. Explain
 
@@ -127,6 +128,7 @@ EOF
 - `--block` is the block the entry explains. Omit it for a whole-file entry — the default is the file itself.
 - The project needs its `human/` folder first: run `human init` at the project root once.
 - `human map .` at the root maps the project itself: the entry goes into `human/human.json`, takes no `--block`, and its pins are file and `file:block` pins only. Write one line per file — what the file does, the file's path as the pin.
+- `human map project` maps the project telling of §8: the entry goes into `human/project.json`, takes no `--block`, and its pins may be file, `file:block`, `file:e<id>:words`, and `e<id>:` into an earlier entry of the same map.
 - The run is deterministic and instant: human parses the anchors out of the text, checks every target, refuses duplicates, dead names, and circles, resolves each block anchor to its exact lines, and appends one entry. There is no claude call.
 - Order matters once: an `e<id>:` target must name an entry that already exists, so map the detailed entry before the plainer one that points into it.
 
@@ -155,7 +157,10 @@ human sync <code_file>
 - The old version comes from git `HEAD`; pass `--old <file>` when it lives elsewhere. Commit the code file together with its map, so `HEAD` is always the last synced state. Run sync exactly once per code change — a second run against the same `--old` re-applies the diff and corrupts the spans; use `human show` to look.
 - A deterministic pass re-resolves every block anchor and entry span from the new code. A change that only moves lines ends here — no claude call.
 - One claude call then repairs the words of the entries the change touches: it mends the stale lines, adds a sentence for each behaviour the change added — a new option, a new step, a new case — keeps every anchor, retargets an anchor whose block was renamed, and renames an entry's block when the code renamed it. The call runs at the project root and reads the whole file, plus the project files the file imports when a new sentence needs them. Gates check every anchor and retry up to `--tries` (default 4). When new lines land inside an entry and its text did not change, sync warns: those lines got no sentence.
-- Entries that point into a repaired entry are marked stale.
+- Entries that point into a repaired entry are marked stale — in the file's map, and in the project map when one of its entries pins the repaired entry.
+- Two kinds of entry are never reworded by a sync: an entry mapped with `--verbatim` — the user's own words — and a whole-file layer with no pin of its own into the code. They receive a new fact through `--stale`, one layer down; a verbatim entry not even then — the tool says so, and the user retexts it or leaves it.
+
+`human sync project` when the code changed: the old state is git `HEAD`, no `--old`. A deterministic pass re-resolves every file, block, and `file:e<id>:words` pin; a gone target is reported. One claude call then mends the entries that pin a changed file: it gets the root, the changed files with their paths — it reads them —, their diff, and the pins whose target is gone with the anchors that entry holds now. The same rules and gates as a file sync. `human sync project --stale <id>` repairs a project entry that a file's entry made stale: the parent text comes from that file's map, and a carried fact is pinned `file:e<id>:words`.
 
 `human sync .` at the root re-resolves the pins of `human/human.json` against the project — no claude call. A pin whose file is gone is reported; repair it with `human retext`.
 
@@ -176,7 +181,7 @@ After a map run, report to the user in this order:
 3. Any warnings from `human show`, and any entries marked stale.
 4. Offer to take the next explanation.
 
-After a retext, an undo, or a sync, report what changed and confirm with `human show <code_file>`.
+After a retext, an undo, or a sync, report what changed and confirm with `human show <code_file>`. `human show project` reports the project entries, their warnings, and the coverage as files with a pin out of the files of the project.
 
 ## 7. Train
 
@@ -200,10 +205,20 @@ EOF
 
 - `--kind create` is the default: a new abstraction. `--kind sync` is for a file whose code changed — run `human sync` first, so the middle slot holds the repaired text.
 - `--entry <id>` when the versions refine an entry that exists; the close runs `human retext`. `--block <name>` when the versions zoom on one block; the close runs `human map --block`. Neither: a first entry of an unmapped file, or a plainer layer whose pins are `e<id>:`.
-- The first call for a file makes the row and takes a full copy of the code; the next calls fill the other slots. Every call checks the anchors like `human map`, so a picked text can always be applied.
+- The first call for a file makes the row and takes a full copy of the code; the next calls fill the other slots. A row of the project — `human train project` — copies every file of the project for a new abstraction, and the changed files with their diff for a sync row. Every call checks the anchors like `human map`, so a picked text can always be applied.
 - A second call with the same `--as` puts the new text on top and keeps the earlier text in the version's history — this is how a rewrite the user asks for goes in. The feed shows the rewrites of a card under a small picker, `v1 v2 v3`, so the user can read how the text came to be; the pick and the close take the latest. The code must not have changed since the row was made.
 - After the last version, tell the user the feed address and stop.
 
 The user may leave a comment with a pick — why that version won. The comment lives in the row; read it when the user asks what a pick meant.
 
 `human train --close`, on the user's word, applies every picked row — `map` or `retext` — writes the new entry id into the row, and marks the session finished. When one apply fails, the session stays open; correct that row and close again. A row without a pick carries over: the next `human train --open` rebuilds it against the code and the map of that day, keeps every version whose anchors still hold, and drops the rest — write the dropped versions again.
+
+## 8. The project
+
+When the user asks how the project works — not one file, the whole — write the telling of the project. Read `human/human.json`'s top entry and the whole-file entry of every mapped file first; the telling stands on them, it does not repeat them.
+
+- What the telling is, is yours to choose from what the project is: a set of things the user can ask for, one run from the first command to the last file written, a rulebook. The catalog has no project shape until the user validates one — when a validated shape fits, take it; when none does, choose the shape that explains, and say which you chose.
+- The pins reach the files (`[the door](src/__init__.py)`), one block of a file (`[the gate](src/cmd_map.py:parse_target)`), and the anchors of the file entries (`[the checking](src/cmd_map.py:e1:the gates)`) — the last is the bridge from the project telling to the tellings of the files, so a reader walks down from the project to the file to the code. A plainer layer over the project telling pins with `e<id>:` into it, in the same map.
+- One map, `human/project.json`. It holds every project entry; a plainer or a deeper telling is one more entry there, never another file.
+- Show the text, then stop; on the user's word, `human map project`. Report as in §6.
+- After a change: `human sync project` (§5). A file sync that mends an entry the project pins marks the project entry stale; repair it with `human sync project --stale <id>` on the user's word.

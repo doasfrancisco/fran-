@@ -35,9 +35,11 @@ human map <code_file> --verbatim abstraction.txt <<'EOF'
 EOF
 ```
 
-The CLI strips the pins out and compares the rest against `abstraction.txt` character for character. A changed word is a refusal. Pins go in; the user's words never change.
+The CLI strips the pins out and compares the rest against `abstraction.txt` character for character. A changed word is a refusal. Pins go in; the user's words never change. The entry is marked verbatim, and no later `sync` rewords it.
 
-6. **Report.** `human show <code_file>` per file: the entries, the coverage, the warnings. Start `human serve` when no server runs, and give the user the reader address: `http://localhost:8010/human/web.html`.
+6. **Map the project telling.** When the project has more than one file, one entry in `human/project.json` tells how the files answer together — what the user can ask for and which file does each part. Its shape is yours to choose; its pins reach the files, their blocks, and the anchors of the file entries (`[the answer](src/app.py:e1:the answerer)`). Show it, then `human map project` on the user's word.
+
+7. **Report.** `human show <code_file>` per file and `human show project`: the entries, the coverage, the warnings. Start `human serve` when no server runs, and give the user the reader address: `http://localhost:8010/human/web.html`.
 
 ## Pins
 

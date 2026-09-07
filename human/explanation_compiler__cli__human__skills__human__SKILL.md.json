@@ -7,10 +7,10 @@
       "block_lines": [
         [
           1,
-          96
+          98
         ]
       ],
-      "text": "\u25cf  you hand over an abstraction                          ([the skill](human))\n  \u2502     You write the telling first, free text, and\n  \u2502     claude writes the code under it.\n  \u2502     The root holds the code and your words; the\n  \u2502     human/ folder holds the maps to real lines.\n  \u2502\n  \u25cf  one run makes the project                            ([the run](The run))\n  \u2502     Six steps: keep your words untouched, write the\n  \u2502     code, register the project, map the detailed\n  \u2502     telling, map your words through the gate, report.\n  \u2502     The gate strips the pins and compares the rest\n  \u2502     to your file character for character.\n  \u2502\n  \u25cf  the pins tie words to things                            ([the pins](Pins))\n  \u2502     A few words may point at a block, at an earlier\n  \u2502     entry, or at another file.\n  \u2502     The rules: unique words, real targets, no circle,\n  \u2502     the detailed entry before the plainer one.\n  \u2502\n  \u25cf  the telling takes a shape                    ([the shape](The rail shape))\n  \u2502     Claude's telling picks its shape from the catalog\n  \u2502     beside this skill \u2014 the rail by default.\n  \u2502     Your abstraction takes no shape at all; it stays\n  \u2502     as you wrote it.\n  \u2502\n  \u25cf  the laws hold afterwards                              ([the rules](Rules))\n        Sync runs exactly once per change. A reword of\n        your abstraction goes to abstraction.txt first.\n        A repair may re-pin your words but never\n        change them.",
+      "text": "The skill claude reads when you give an abstraction and want the code under it.\n\n  you: \"/human an http server using python that returns hello world\"\n       claude keeps your words as they are, in abstraction.txt at the root \u2014\n       no spelling fixed, no word trimmed                             ([the skill](human))\n       claude writes the code files, no comments; the gate is static like a\n       compiler's \u2014 the file must parse \u2014 and there is no run and no test\n       the tool registers the project: the file list, the reader, the empty\n       project map\n       claude maps the detailed telling of each file, in a shape from the\n       catalog beside this skill \u2014 the rail by default          ([the shape](The rail shape))\n       claude maps your words on top, with pins in them; the gate strips the\n       pins and compares the rest to abstraction.txt character for character \u2014\n       a changed word is a refusal, and the entry is marked as yours, so a\n       later repair of the code leaves its words alone\n       when the project has more than one file, claude maps one telling of\n       the project \u2014 what you can ask for and which file answers each part\n       claude reports each file and the project, and gives you the reader\n                                                                      ([the run](The run))\n\n  the pins tie a few words to a block, an earlier entry, another file, or an\n  entry of another file's map; unique words, real targets, no circle, the\n  detailed entry before the plainer one                              ([the pins](Pins))\n\n  afterwards: sync runs exactly once per change; a reword of your abstraction\n  goes to abstraction.txt first; a repair may re-pin your words but never\n  change them                                                        ([the rules](Rules))",
       "anchors": [
         {
           "words": "the skill",
@@ -18,7 +18,17 @@
           "lines": [
             [
               6,
-              96
+              98
+            ]
+          ]
+        },
+        {
+          "words": "the shape",
+          "block": "The rail shape",
+          "lines": [
+            [
+              61,
+              92
             ]
           ]
         },
@@ -28,7 +38,7 @@
           "lines": [
             [
               10,
-              41
+              43
             ]
           ]
         },
@@ -37,18 +47,8 @@
           "block": "Pins",
           "lines": [
             [
-              42,
-              58
-            ]
-          ]
-        },
-        {
-          "words": "the shape",
-          "block": "The rail shape",
-          "lines": [
-            [
-              59,
-              90
+              44,
+              60
             ]
           ]
         },
@@ -57,8 +57,8 @@
           "block": "Rules",
           "lines": [
             [
-              91,
-              96
+              93,
+              98
             ]
           ]
         }
@@ -85,17 +85,18 @@
       41,
       43,
       45,
-      49,
+      47,
       51,
-      58,
+      53,
       60,
       62,
-      75,
+      64,
       77,
-      86,
+      79,
       88,
       90,
-      92
+      92,
+      94
     ]
   }
 }

@@ -21,6 +21,8 @@ Read the input against every shape in the folder — its rules and its example �
 
 The smallest change that would have produced the ideal wins.
 
+A shape of the project telling — the text of `human/project.json`, which pins files and their entries in place of blocks — enters the same way: from a validated instance, as one more file of the folder that says it fits the project.
+
 ## The validation
 
 Show the decision and the exact new text of the shape file. Write nothing yet. On the user's word, write the file; without the word, the catalog does not change. A shape file records which project validated it.

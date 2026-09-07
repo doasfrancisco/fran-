@@ -1,0 +1,293 @@
+{
+  "code_file": "project",
+  "explanations": [
+    {
+      "id": 1,
+      "block": "project",
+      "block_lines": [],
+      "text": "How human works \u2014 seven things you can ask for, told as flows.\nOn the left, who acts: you, claude, the tool, the disk.\n\n\nflow 1 \u00b7 decompile \u2014 the code exists, the words come after\n\n  you      ask for a file: /decompile src/app.py\n  claude   reads the file and picks the shape from the kind of file,\n           by [the decompile skill](compiler/cli/human/skills/decompile/SKILL.md) and\n           [the shape catalog](compiler/cli/human/shapes/README.md): one run takes the rail,\n           a set of functions the sections, a dispatcher the desk, a rulebook the dialogue.\n  claude   writes the telling for [a reader who does not read code](compiler/cli/human/skills/decompile/SKILL.md:e1:explain),\n           with pins on the words that name a thing. Every other word is free.\n  claude   shows the text and stops \u2014 even when your message sounded like approval.\n  you      say the word: map it.\n  claude   pipes the exact text into [human map](compiler/cli/human/cmd_map.py:e1:cmd_map).\n  tool     gates the entry, no claude call: [every pin points at a real thing](compiler/cli/human/decompiler.py:e1:build_anchors),\n           no two pins share their words, [no circle](compiler/cli/human/decompiler.py:e1:check_cycle),\n           and each block pin gets [its exact lines](compiler/cli/human/decompiler.py:e1:block_spans).\n           A refusal is the gate speaking: claude reads it, fixes the text, runs again.\n  disk     one entry appended to human/explanation_<path>.json, never one changed.\n  claude   [reports](compiler/cli/human/skills/decompile/SKILL.md:e1:report): the entry, its pins, the coverage,\n           the warnings of [human show](compiler/cli/human/decompiler.py:e1:cmd_show) \u2014 and offers the next telling:\n           a zoom on one block, a plainer layer over the whole, or [the project itself](compiler/cli/human/cmd_project.py:e1:cmd_map_project),\n           whose pins reach the files and the entries of their maps.\n\n\nflow 2 \u00b7 compile \u2014 your words come first, the code after\n\n  you      give an abstraction: /human an http server that returns hello world\n  claude   follows [the human skill](compiler/cli/human/skills/human/SKILL.md): [the run](compiler/cli/human/skills/human/SKILL.md:e1:the run)\n           keeps your words verbatim in abstraction.txt \u2014 no spelling fixed, no word trimmed.\n  claude   writes the code files, no comments. The gate is static like a compiler's: the file must parse.\n  tool     [human init](compiler/cli/human/__init__.py:e1:the register) registers the project: [sweeps the tree](compiler/cli/human/__init__.py:e1:the sweep)\n           through [the ignore sieve](compiler/cli/human/__init__.py:e1:the sieve), writes the file list into human/human.json,\n           copies the reader in, and starts the empty project map.\n  claude   maps the detailed telling of each file \u2014 entry 1, a catalog shape, pins into the blocks.\n  claude   maps your words on top: pins inserted, the rest untouched, through [the verbatim gate](compiler/cli/human/__init__.py:e1:the guard),\n           which strips the pins out and compares the rest against abstraction.txt character for character.\n           A changed word is a refusal. Pins go in; your words never change.\n  claude   reports and serves. Afterwards you correct with retext, undo, sync \u2014 the commands of flow 1.\n\n\nflow 3 \u00b7 read\n\n  you      start the reader from anywhere in the project: human serve\n  tool     [climbs to the folder that holds human/human.json](compiler/cli/human/decompiler.py:e1:find_root) and [serves it](compiler/cli/human/__init__.py:e1:the shelf),\n           printing the localhost line and [the tailnet line](compiler/cli/human/__init__.py:e1:tailnet address).\n  tool     answers human.json with [a live file list](compiler/cli/human/__init__.py:e1:rebuilt) \u2014 a fresh sweep on every ask,\n           so a deleted file leaves the tree and a new one appears, no init, no restart.\n  you      open [the reader](compiler/cli/human/reader/web.html): human.json opens first, project.json stands under it;\n           a file shows [every entry as one folded header](compiler/cli/human/reader/web.html:e1:render), the most detailed first;\n           a click on a pin [jumps to its entry](compiler/cli/human/reader/web.html:e1:jump), and a pin into another file\n           [switches file](compiler/cli/human/reader/web.html:e1:crossJump) \u2014 a project pin lands on the entry and lights the anchor.\n\n\nflow 4 \u00b7 sync \u2014 the code changed\n\n  you      change the code, then: human sync src/app.py\n  tool     [a deterministic pass](compiler/cli/human/decompiler.py:e1:cmd_sync), no claude: [maps every old line to its new line](compiler/cli/human/decompiler.py:e1:the line map),\n           [re-resolves every pin and every span](compiler/cli/human/decompiler.py:e1:the re-resolving). Lines that only moved end here.\n  tool     finds the entries the change touches: lines changed, a pin broken, new lines inside the block.\n  tool     writes the letter to claude: the file and its absolute path \u2014 read the whole file \u2014, the diff,\n           [the project files it imports](compiler/cli/human/decompiler.py:e1:the line about the neighbours), the blocks, the entries to mend, the rules:\n           keep the untouched lines, keep every anchor, add a sentence for each behaviour the change added.\n  claude   [answers with the mended texts](compiler/cli/human/decompiler.py:e1:ask_claude), run at the project root.\n  tool     [gates the answer on a copy](compiler/cli/human/decompiler.py:e1:the rebuild), up to --tries times: every block exists,\n           every anchor kept, every needed word alive. Four failures leave the map untouched.\n  disk     the map saved; the entries that point into a mended one marked stale \u2014 in the file's map,\n           and in the project map when a project entry pins the mended one.\n           A warning when [new lines landed inside an entry](compiler/cli/human/decompiler.py:e1:the pieces the new lines fall in) and no word changed.\n  you      for the whole project: human sync project. The old state is git HEAD; the tool asks git for\n           [the files that changed](compiler/cli/human/cmd_project.py:e1:changed_files), re-resolves the file, block, and entry pins,\n           and [sends one letter](compiler/cli/human/cmd_project.py:e1:cmd_sync) for the entries that pin a changed file.\n\n\nflow 5 \u00b7 carry down \u2014 a parent telling changed\n\n  disk     entry 1 changed \u2014 by a sync or a retext \u2014 and entry 2 points into it,\n           so [entry 2 is marked stale](compiler/cli/human/decompiler.py:e1:mark_children) with a copy of the old text.\n  you      ask for the repair: human sync src/app.py --stale 2\n  tool     writes the second letter: the old text of the parent, the new text, the diff, the dependent's text,\n           the rules: mend the words that went wrong, keep every anchor and [every word another entry needs](compiler/cli/human/decompiler.py:e1:needed_words),\n           carry a new fact down at the dependent's own level, pinned at the parent's new anchor.\n  claude   answers with the mended dependent \u2014 words only, never code.\n  tool     [gates and saves](compiler/cli/human/decompiler.py:e1:repair_stale); the dependents of entry 2 are marked stale in turn.\n           A parent's child can be a parent: the next layer waits for your next word, one layer at a time.\n           A project entry made stale by a file's entry is repaired the same way,\n           with the parent read from that file's map: [human sync project --stale](compiler/cli/human/cmd_project.py:e1:repair_stale).\n\n\nflow 6 \u00b7 train \u2014 the catalog learns from real picks\n\n  you      open a session: human train --open. [Rows without a pick carry over](compiler/cli/human/cmd_train.py:e1:carry).\n  claude   on the next /decompile or sync, writes three versions per file instead of one:\n           best \u2014 the catalog shape, with --shape; refinement \u2014 for a sync row, the map's own text,\n           filled by the tool; free \u2014 no shape rule. [Each version goes in with its own call](compiler/cli/human/cmd_train.py:e1:cmd_add),\n           passes the same pin gates as a map, and a rewrite keeps its earlier text in the history.\n  tool     serves [the feed](compiler/cli/human/reader/feed.html): the session list and the fresh map come as JSON;\n           [a pick lands in the open session](compiler/cli/human/cmd_train.py:e1:pick) over POST, no restart.\n  you      swipe and pick \u2014 sideways for the versions, down for the next file \u2014 and leave a comment if you want.\n  you      close: human train --close.\n  tool     [applies each pick](compiler/cli/human/cmd_train.py:e1:apply_row) as a retext of the entry or a new map, then [marks the session finished](compiler/cli/human/cmd_train.py:e1:cmd_close).\n           The maps never change before the close.\n  disk     human/training/<session>.json: the rows, the three versions with their shape and history,\n           the pick, the comment, and a copy of the code \u2014 or, for the project, [of every file](compiler/cli/human/cmd_project.py:e1:snapshot).\n\n\nflow 7 \u00b7 shapes \u2014 how the catalog changes\n\n  claude   reads the finished sessions: which slot won, which shape it wore, what the comment said.\n  claude   tells you what it learned and the fix it would make, by [the shapes skill](compiler/cli/human/skills/shapes/SKILL.md):\n           [the smallest change that would have produced the ideal](compiler/cli/human/skills/shapes/SKILL.md:e1:the comparison) \u2014\n           a new shape, a rule added or changed, or the example changed.\n  you      [validate, or not](compiler/cli/human/skills/shapes/SKILL.md:e1:the validation). Without the word, the catalog does not change.\n  claude   edits shapes/<shape>.md, bumps the version, reinstalls, and redeploys with [human skills](compiler/cli/human/__init__.py:e1:the giver).\n           The next /decompile reads the new rule.",
+      "anchors": [
+        {
+          "words": "the decompile skill",
+          "file": "compiler/cli/human/skills/decompile/SKILL.md"
+        },
+        {
+          "words": "the shape catalog",
+          "file": "compiler/cli/human/shapes/README.md"
+        },
+        {
+          "words": "a reader who does not read code",
+          "file": "compiler/cli/human/skills/decompile/SKILL.md",
+          "entry": 1,
+          "anchor": "explain"
+        },
+        {
+          "words": "human map",
+          "file": "compiler/cli/human/cmd_map.py",
+          "entry": 1,
+          "anchor": "cmd_map"
+        },
+        {
+          "words": "every pin points at a real thing",
+          "file": "compiler/cli/human/decompiler.py",
+          "entry": 1,
+          "anchor": "build_anchors"
+        },
+        {
+          "words": "no circle",
+          "file": "compiler/cli/human/decompiler.py",
+          "entry": 1,
+          "anchor": "check_cycle"
+        },
+        {
+          "words": "its exact lines",
+          "file": "compiler/cli/human/decompiler.py",
+          "entry": 1,
+          "anchor": "block_spans"
+        },
+        {
+          "words": "reports",
+          "file": "compiler/cli/human/skills/decompile/SKILL.md",
+          "entry": 1,
+          "anchor": "report"
+        },
+        {
+          "words": "human show",
+          "file": "compiler/cli/human/decompiler.py",
+          "entry": 1,
+          "anchor": "cmd_show"
+        },
+        {
+          "words": "the project itself",
+          "file": "compiler/cli/human/cmd_project.py",
+          "entry": 1,
+          "anchor": "cmd_map_project"
+        },
+        {
+          "words": "the human skill",
+          "file": "compiler/cli/human/skills/human/SKILL.md"
+        },
+        {
+          "words": "the run",
+          "file": "compiler/cli/human/skills/human/SKILL.md",
+          "entry": 1,
+          "anchor": "the run"
+        },
+        {
+          "words": "human init",
+          "file": "compiler/cli/human/__init__.py",
+          "entry": 1,
+          "anchor": "the register"
+        },
+        {
+          "words": "sweeps the tree",
+          "file": "compiler/cli/human/__init__.py",
+          "entry": 1,
+          "anchor": "the sweep"
+        },
+        {
+          "words": "the ignore sieve",
+          "file": "compiler/cli/human/__init__.py",
+          "entry": 1,
+          "anchor": "the sieve"
+        },
+        {
+          "words": "the verbatim gate",
+          "file": "compiler/cli/human/__init__.py",
+          "entry": 1,
+          "anchor": "the guard"
+        },
+        {
+          "words": "climbs to the folder that holds human/human.json",
+          "file": "compiler/cli/human/decompiler.py",
+          "entry": 1,
+          "anchor": "find_root"
+        },
+        {
+          "words": "serves it",
+          "file": "compiler/cli/human/__init__.py",
+          "entry": 1,
+          "anchor": "the shelf"
+        },
+        {
+          "words": "the tailnet line",
+          "file": "compiler/cli/human/__init__.py",
+          "entry": 1,
+          "anchor": "tailnet address"
+        },
+        {
+          "words": "a live file list",
+          "file": "compiler/cli/human/__init__.py",
+          "entry": 1,
+          "anchor": "rebuilt"
+        },
+        {
+          "words": "the reader",
+          "file": "compiler/cli/human/reader/web.html"
+        },
+        {
+          "words": "every entry as one folded header",
+          "file": "compiler/cli/human/reader/web.html",
+          "entry": 1,
+          "anchor": "render"
+        },
+        {
+          "words": "jumps to its entry",
+          "file": "compiler/cli/human/reader/web.html",
+          "entry": 1,
+          "anchor": "jump"
+        },
+        {
+          "words": "switches file",
+          "file": "compiler/cli/human/reader/web.html",
+          "entry": 1,
+          "anchor": "crossJump"
+        },
+        {
+          "words": "a deterministic pass",
+          "file": "compiler/cli/human/decompiler.py",
+          "entry": 1,
+          "anchor": "cmd_sync"
+        },
+        {
+          "words": "maps every old line to its new line",
+          "file": "compiler/cli/human/decompiler.py",
+          "entry": 1,
+          "anchor": "the line map"
+        },
+        {
+          "words": "re-resolves every pin and every span",
+          "file": "compiler/cli/human/decompiler.py",
+          "entry": 1,
+          "anchor": "the re-resolving"
+        },
+        {
+          "words": "the project files it imports",
+          "file": "compiler/cli/human/decompiler.py",
+          "entry": 1,
+          "anchor": "the line about the neighbours"
+        },
+        {
+          "words": "answers with the mended texts",
+          "file": "compiler/cli/human/decompiler.py",
+          "entry": 1,
+          "anchor": "ask_claude"
+        },
+        {
+          "words": "gates the answer on a copy",
+          "file": "compiler/cli/human/decompiler.py",
+          "entry": 1,
+          "anchor": "the rebuild"
+        },
+        {
+          "words": "new lines landed inside an entry",
+          "file": "compiler/cli/human/decompiler.py",
+          "entry": 1,
+          "anchor": "the pieces the new lines fall in"
+        },
+        {
+          "words": "the files that changed",
+          "file": "compiler/cli/human/cmd_project.py",
+          "entry": 1,
+          "anchor": "changed_files"
+        },
+        {
+          "words": "sends one letter",
+          "file": "compiler/cli/human/cmd_project.py",
+          "entry": 1,
+          "anchor": "cmd_sync"
+        },
+        {
+          "words": "entry 2 is marked stale",
+          "file": "compiler/cli/human/decompiler.py",
+          "entry": 1,
+          "anchor": "mark_children"
+        },
+        {
+          "words": "every word another entry needs",
+          "file": "compiler/cli/human/decompiler.py",
+          "entry": 1,
+          "anchor": "needed_words"
+        },
+        {
+          "words": "gates and saves",
+          "file": "compiler/cli/human/decompiler.py",
+          "entry": 1,
+          "anchor": "repair_stale"
+        },
+        {
+          "words": "human sync project --stale",
+          "file": "compiler/cli/human/cmd_project.py",
+          "entry": 1,
+          "anchor": "repair_stale"
+        },
+        {
+          "words": "Rows without a pick carry over",
+          "file": "compiler/cli/human/cmd_train.py",
+          "entry": 1,
+          "anchor": "carry"
+        },
+        {
+          "words": "Each version goes in with its own call",
+          "file": "compiler/cli/human/cmd_train.py",
+          "entry": 1,
+          "anchor": "cmd_add"
+        },
+        {
+          "words": "the feed",
+          "file": "compiler/cli/human/reader/feed.html"
+        },
+        {
+          "words": "a pick lands in the open session",
+          "file": "compiler/cli/human/cmd_train.py",
+          "entry": 1,
+          "anchor": "pick"
+        },
+        {
+          "words": "applies each pick",
+          "file": "compiler/cli/human/cmd_train.py",
+          "entry": 1,
+          "anchor": "apply_row"
+        },
+        {
+          "words": "marks the session finished",
+          "file": "compiler/cli/human/cmd_train.py",
+          "entry": 1,
+          "anchor": "cmd_close"
+        },
+        {
+          "words": "of every file",
+          "file": "compiler/cli/human/cmd_project.py",
+          "entry": 1,
+          "anchor": "snapshot"
+        },
+        {
+          "words": "the shapes skill",
+          "file": "compiler/cli/human/skills/shapes/SKILL.md"
+        },
+        {
+          "words": "the smallest change that would have produced the ideal",
+          "file": "compiler/cli/human/skills/shapes/SKILL.md",
+          "entry": 1,
+          "anchor": "the comparison"
+        },
+        {
+          "words": "validate, or not",
+          "file": "compiler/cli/human/skills/shapes/SKILL.md",
+          "entry": 1,
+          "anchor": "the validation"
+        },
+        {
+          "words": "human skills",
+          "file": "compiler/cli/human/__init__.py",
+          "entry": 1,
+          "anchor": "the giver"
+        }
+      ]
+    }
+  ],
+  "not_covered": {
+    "code_lines": [],
+    "blank_lines": []
+  }
+}

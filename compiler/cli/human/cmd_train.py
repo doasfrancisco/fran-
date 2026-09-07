@@ -8,7 +8,7 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
-from . import cmd_map, decompiler
+from . import cmd_map, cmd_project, decompiler
 
 SLOTS = ("best", "refinement", "free")
 LOCK = threading.Lock()
@@ -77,17 +77,36 @@ def list_sessions(root):
     return [summary(p, load_session(p)) for p in session_paths(root)]
 
 
-def carry_row(root, old, old_sid):
-    code_path = root / old["file"]
+def is_project(code_name):
+    return code_name == cmd_project.WORD
+
+
+def map_rel(root, code_path, code_name):
+    if is_project(code_name):
+        return cmd_project.map_path(root).relative_to(root).as_posix()
+    return decompiler.map_path_of(code_path, root).relative_to(root).as_posix()
+
+
+def source_of(root, code_name, kind):
+    if is_project(code_name):
+        return None, cmd_project.snapshot(root, kind), {}, cmd_project.load(root)
+    code_path = root / code_name
     if not code_path.is_file():
+        return None, None, None, None
+    src = code_path.read_text()
+    spans = decompiler.block_spans(code_path, src.splitlines())
+    data = cmd_map.load_map(decompiler.map_path_of(code_path, root), code_name)
+    return code_path, src, spans, data
+
+
+def carry_row(root, old, old_sid):
+    code_path, src, spans, data = source_of(root, old["file"], old["kind"])
+    if src is None:
         print(f"{old['file']} is gone; its row stays in {old_sid}")
         return None
     a = argparse.Namespace(kind=old["kind"],
                            entry=old["entry"] if old["level"] == "same" else None,
                            block=old["block"] if old["level"] == "above" else None)
-    src = code_path.read_text()
-    spans = decompiler.block_spans(code_path, src.splitlines())
-    data = cmd_map.load_map(decompiler.map_path_of(code_path, root), old["file"])
     try:
         row = new_row(a, root, code_path, old["file"], data, src)
     except SystemExit as e:
@@ -173,22 +192,24 @@ def new_row(a, root, code_path, code_name, data, src):
         eid = a.entry if a.entry is not None else whole_file_entry(data, code_name)
         entry = next((e for e in data["explanations"] if e["id"] == eid), None)
         if entry is None:
-            sys.exit(f"no entry to sync in {decompiler.map_path_of(code_path, root).name}")
+            sys.exit(f"no entry to sync in {Path(map_rel(root, code_path, code_name)).name}")
         level = "same"
     elif a.entry is not None:
         if a.block:
             sys.exit("give --entry or --block, not both")
         entry = next((e for e in data["explanations"] if e["id"] == a.entry), None)
         if entry is None:
-            sys.exit(f"no entry {a.entry} in {decompiler.map_path_of(code_path, root).name}")
+            sys.exit(f"no entry {a.entry} in {Path(map_rel(root, code_path, code_name)).name}")
         level = "same"
     elif a.block:
+        if is_project(code_name):
+            sys.exit("the project map has no blocks of its own; drop --block")
         level = "above"
     else:
         level = "first" if not data["explanations"] else "below"
     stamp = now()
     row = {"file": code_name, "kind": a.kind,
-           "map": decompiler.map_path_of(code_path, root).relative_to(root).as_posix(),
+           "map": map_rel(root, code_path, code_name),
            "entry": entry["id"] if entry else None, "level": level,
            "block": entry["block"] if entry else a.block,
            "before": entry["text"] if entry else None,
@@ -202,7 +223,10 @@ def new_row(a, root, code_path, code_name, data, src):
 
 def check_text(text, row, data, spans, root):
     self_id = row["entry"] if row["level"] == "same" else cmd_map.next_id(data)
-    anchors = decompiler.build_anchors(text, data, spans, self_id, root)
+    if is_project(row["file"]):
+        anchors = cmd_project.build_anchors(text, data, self_id, root)
+    else:
+        anchors = decompiler.build_anchors(text, data, spans, self_id, root)
     if row["level"] == "same":
         gone = decompiler.needed_words(data, row["entry"]) - {x["words"] for x in anchors}
         assert not gone, f"[RETEXT-ANCHORS] other entries point at the anchors {sorted(gone)}; " \
@@ -217,17 +241,17 @@ def cmd_add(a, root):
     path, session = open_session(root)
     if not path:
         sys.exit("no open session; start one with human train --open")
-    code_path = Path(a.code_file).resolve()
-    if not code_path.is_file():
-        sys.exit(f"{a.code_file} is not a file")
-    code_name = decompiler.rel_name(code_path, root)
-    src = code_path.read_text()
-    lines = src.splitlines()
-    spans = decompiler.block_spans(code_path, lines)
-    data = cmd_map.load_map(decompiler.map_path_of(code_path, root), code_name)
-    text = decompiler.read_text_arg(a)
+    if is_project(a.code_file):
+        code_name = a.code_file
+    else:
+        code_path = Path(a.code_file).resolve()
+        if not code_path.is_file():
+            sys.exit(f"{a.code_file} is not a file")
+        code_name = decompiler.rel_name(code_path, root)
     row = next((r for r in session["rows"] if r["file"] == code_name and r["applied"] is None), None)
     made = row is None
+    code_path, src, spans, data = source_of(root, code_name, a.kind if made else row["kind"])
+    text = decompiler.read_text_arg(a)
     if made:
         row = new_row(a, root, code_path, code_name, data, src)
     elif row["code"] != src:
@@ -267,14 +291,17 @@ def run_with_text(fn, text, **kw):
 
 
 def apply_row(root, row):
-    code_path = root / row["file"]
+    proj = is_project(row["file"])
+    code_file = row["file"] if proj else str(root / row["file"])
     text = version_text(row["versions"][row["picked"]])
     if row["level"] == "same":
-        run_with_text(decompiler.cmd_retext, text, code_file=str(code_path), id=row["entry"])
+        run_with_text(cmd_project.cmd_retext if proj else decompiler.cmd_retext, text,
+                      code_file=code_file, id=row["entry"])
         return row["entry"]
-    data = cmd_map.load_map(decompiler.map_path_of(code_path, root), row["file"])
+    data = cmd_project.load(root) if proj else \
+        cmd_map.load_map(decompiler.map_path_of(root / row["file"], root), row["file"])
     eid = cmd_map.next_id(data)
-    run_with_text(cmd_map.cmd_map, text, code_file=str(code_path), block=row["block"])
+    run_with_text(cmd_map.cmd_map, text, code_file=code_file, block=row["block"])
     return eid
 
 
@@ -290,7 +317,7 @@ def cmd_close(root):
         if not row["picked"] or row["applied"]:
             continue
         print(f"row {i}: {row['file']}, {row['picked']} picked")
-        if (root / row["file"]).read_text() != row["code"]:
+        if source_of(root, row["file"], row["kind"])[1] != row["code"]:
             row["code_changed"] = True
             print(f"row {i}: the file changed since the row was made; the versions describe the old code")
         try:
@@ -325,5 +352,5 @@ def cmd_train(a):
         return
     if not a.code_file:
         sys.exit("give a file, or --open / --close")
-    root = decompiler.find_root(Path(a.code_file).resolve())
+    root = decompiler.find_root(Path.cwd() if is_project(a.code_file) else Path(a.code_file).resolve())
     cmd_add(a, root)

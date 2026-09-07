@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import cmd_map
+from . import cmd_map, cmd_project
 
 ANCHOR_RE = re.compile(r"\[([^\[\]]+)\]\(([^()]+)\)")
 
@@ -528,6 +528,12 @@ def report_text_diff(eid, old, new):
             print(f"entry {eid}: + {l.strip()}")
 
 
+def report_project_stale(ids):
+    if ids:
+        print(f"entries {', '.join(map(str, ids))} of the project map depend on the changed entry and "
+              f"are marked stale; repair each with human sync project --stale <id>")
+
+
 def cmd_retext(a):
     code_path = Path(a.code_file).resolve()
     root = find_root(code_path)
@@ -542,7 +548,8 @@ def cmd_retext(a):
     if entry is None:
         sys.exit(f"no entry {a.id} in {map_path.name}")
     text = read_text_arg(a)
-    need = needed_words(data, a.id)
+    code_name = rel_name(code_path, root)
+    need = needed_words(data, a.id) | cmd_project.pins_into(root, code_name, a.id)
     try:
         anchors = build_anchors(text, data, spans, a.id, folder)
         if code_path.is_dir():
@@ -563,7 +570,8 @@ def cmd_retext(a):
     print(f"entry {a.id} ({entry['block']}): text replaced, {anchor_counts(anchors)}")
     if kids:
         print(f"entries {', '.join(map(str, kids))} depend on entry {a.id} and are marked stale; "
-              f"repair each with human sync {rel_name(code_path, root)} --stale <id>")
+              f"repair each with human sync {code_name} --stale <id>")
+    report_project_stale(cmd_project.mark_stale(root, code_name, a.id, old_text) if text != old_text else [])
     print(f"wrote {map_path}")
 
 
@@ -576,6 +584,9 @@ def cmd_undo(a):
     kids = [e["id"] for e in children_of(data, last["id"])]
     if kids:
         sys.exit(f"entries {kids} point at entry {last['id']} through anchors; undo them first")
+    root = find_root(code_path)
+    if cmd_project.pins_into(root, rel_name(code_path, root), last["id"]):
+        sys.exit(f"the project map points at entry {last['id']} through anchors; retext it first")
     data["explanations"].pop()
     lines = [] if code_path.is_dir() else code_path.read_text().splitlines()
     missing, blank = recompute(data, lines)
@@ -706,6 +717,12 @@ def entry_lines_set(e):
     return s
 
 
+def rewordable(e, code_name):
+    if e.get("verbatim"):
+        return False
+    return e["block"] != code_name or any("block" in x and "file" not in x for x in e.get("anchors", []))
+
+
 def refresh_file_anchor(x, eid, folder):
     fp = folder / x["file"]
     if not fp.is_file():
@@ -758,7 +775,7 @@ def rebuild_all(trial, code_name, spans, n, folder, texts, blocks, cand):
             anchors = build_anchors(e["text"], trial, spans, e["id"], folder)
         except AssertionError as err:
             raise AssertionError(f"in the text of entry {e['id']}: {err}") from None
-        need = needed_words(trial, e["id"])
+        need = needed_words(trial, e["id"]) | cmd_project.pins_into(folder, code_name, e["id"])
         gone = need - {x["words"] for x in anchors}
         assert not gone, f"[SYNC-ANCHORS] other entries point at the anchors {sorted(gone)} of " \
                          f"entry {e['id']}; the new text must keep them"
@@ -780,10 +797,14 @@ def repair_stale(a, code_path, root, map_path, data, lines, spans):
     st = entry.get("stale")
     if not st:
         sys.exit(f"entry {a.stale} is not stale")
+    if entry.get("verbatim"):
+        sys.exit(f"entry {a.stale} holds the user's words verbatim; the tool does not reword them — "
+                 f"retext it on the user's word, and the stale mark goes")
     parent = next((e for e in data["explanations"] if e["id"] == st["parent"]), None)
     if parent is None:
         sys.exit(f"explanation {st['parent']} no longer exists; retext entry {a.stale} instead")
-    need = needed_words(data, entry["id"])
+    code_name = rel_name(code_path, root)
+    need = needed_words(data, entry["id"]) | cmd_project.pins_into(root, code_name, entry["id"])
     parent_diff = "\n".join(difflib.unified_diff(st["old_text"].splitlines(), parent["text"].splitlines(),
                                                  "old", "new", lineterm=""))
     prompt = (STALE_PROMPT.replace("<pid>", str(parent["id"]))
@@ -829,6 +850,8 @@ def repair_stale(a, code_path, root, map_path, data, lines, spans):
     kids = mark_children(data, entry["id"], old_text) if text != old_text else []
     if kids:
         print(f"entries {', '.join(map(str, kids))} depend on entry {entry['id']} and are marked stale")
+    report_project_stale(cmd_project.mark_stale(root, code_name, entry["id"], old_text)
+                         if text != old_text else [])
     missing, blank = recompute(data, lines)
     map_path.write_text(json.dumps(data, indent=2) + "\n")
     print_coverage(missing, blank, lines)
@@ -876,6 +899,8 @@ def cmd_sync(a):
     for e in data["explanations"]:
         if e["id"] not in broken_ids and expand(e["block_lines"]) & inserted:
             cand.add(e["id"])
+    cand = {i for i in cand if i in broken_ids
+            or rewordable(next(e for e in data["explanations"] if e["id"] == i), code_name)}
     if not cand:
         missing, blank = recompute(data, new_lines)
         map_path.write_text(json.dumps(data, indent=2) + "\n")
@@ -924,6 +949,7 @@ def cmd_sync(a):
     if trial is None:
         sys.exit(f"the sync failed after {a.tries} tries, last error: {last}")
     stale_kids = set()
+    project_kids = []
     for e in trial["explanations"]:
         before = next(x for x in data["explanations"] if x["id"] == e["id"])
         if e["block"] != before["block"]:
@@ -931,6 +957,7 @@ def cmd_sync(a):
         if e["text"] != before["text"]:
             report_text_diff(e["id"], before["text"], e["text"])
             stale_kids.update(mark_children(trial, e["id"], before["text"]))
+            project_kids += cmd_project.mark_stale(root, code_name, e["id"], before["text"])
         elif e["id"] in cand:
             fresh = expand(e["block_lines"]) & inserted
             if fresh:
@@ -939,6 +966,7 @@ def cmd_sync(a):
     if stale_kids:
         print(f"entries {', '.join(map(str, sorted(stale_kids)))} depend on a changed entry and are "
               f"marked stale; repair each with human sync {code_name} --stale <id>")
+    report_project_stale(sorted(set(project_kids)))
     missing, blank = recompute(trial, new_lines)
     map_path.write_text(json.dumps(trial, indent=2) + "\n")
     print_coverage(missing, blank, new_lines)

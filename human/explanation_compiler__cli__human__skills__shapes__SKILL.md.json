@@ -7,21 +7,11 @@
       "block_lines": [
         [
           1,
-          30
+          32
         ]
       ],
-      "text": "\u25cf  a shape fell short                                     ([the door](shapes))\n  \u2502     An abstraction did not explain enough, and the\n  \u2502     catalog that produced it sits in one folder.\n  \u2502     This skill is the only door into that folder;\n  \u2502     everything else only reads it.\n  \u2502\n  \u25cf  you show the ideal                                ([the input](The input))\n  \u2502     You bring what the shape should have looked like:\n  \u2502     a sketch, a photo, a marked screen, a rewrite.\n  \u2502     The run starts from that picture, not from a rule.\n  \u2502\n  \u25cf  claude weighs it against the catalog    ([the comparison](The comparison))\n  \u2502     Every shape's rules and example stand against\n  \u2502     the ideal, and one decision comes out: a new\n  \u2502     shape, a changed rule, or a changed example.\n  \u2502     The smallest change that would have produced\n  \u2502     the ideal wins.\n  \u2502\n  \u25cf  you give the word                       ([the validation](The validation))\n  \u2502     Claude shows the decision and the exact new text\n  \u2502     and writes nothing yet.\n  \u2502     The folder changes on your word only, and the\n  \u2502     shape file records which project validated it.\n  \u2502\n  \u25cf  the next telling lands closer                            ([the aim](Why))\n        Each validated change moves the decompiler and\n        the compiler nearer the perfect abstraction.",
+      "text": "The skill is the one door into the shape catalog. Everything else only reads the folder.\n\n  you: \"the abstraction did not explain enough \u2014 here is what it should have looked like\"\n       a sketch, a photo, a marked screen, a rewrite; the run starts from\n       that picture, not from a rule                                     ([the input](The input))\n       claude weighs it against every shape's rules and example, and one\n       decision comes out: a new shape, a changed rule, or a changed\n       example \u2014 the smallest change that would have produced the ideal\n                                                                   ([the comparison](The comparison))\n       claude shows the decision and the exact new text, and writes nothing\n  you: \"yes\"\n       the folder changes on your word only, and the shape file records\n       which project validated it                                ([the validation](The validation))\n       without the word, the catalog stays as it was\n\n  you: \"the project telling was the one that fell short\"\n       the same door: a shape for the text of human/project.json \u2014 the one\n       that pins files and their entries in place of blocks \u2014 enters from a\n       validated instance, as one more file of the folder that says it fits\n       the project                                                          ([the door](shapes))\n\nWhy: each validated change moves the decompiler and the compiler nearer\nthe perfect abstraction                                                      ([the aim](Why))",
       "anchors": [
-        {
-          "words": "the door",
-          "block": "shapes",
-          "lines": [
-            [
-              6,
-              30
-            ]
-          ]
-        },
         {
           "words": "the input",
           "block": "The input",
@@ -38,7 +28,7 @@
           "lines": [
             [
               14,
-              23
+              25
             ]
           ]
         },
@@ -47,8 +37,18 @@
           "block": "The validation",
           "lines": [
             [
-              24,
-              27
+              26,
+              29
+            ]
+          ]
+        },
+        {
+          "words": "the door",
+          "block": "shapes",
+          "lines": [
+            [
+              6,
+              32
             ]
           ]
         },
@@ -57,8 +57,8 @@
           "block": "Why",
           "lines": [
             [
-              28,
-              30
+              30,
+              32
             ]
           ]
         }
@@ -70,7 +70,7 @@
       "block_lines": [
         [
           1,
-          30
+          32
         ]
       ],
       "text": "A human skill that creates shapes for the human compiler. puts it into [compiler/shapes/](e1:the door).\n\nIt's invoked when an abstraction shape didn't sufficiently explain. And it required [input](e1:the input) on what would an ideal shape would've looked. Each shape comes with rules and a general example so it's easier to understand when to use.\n\nThe input [compares](e1:the comparison) to the current shapes on the folder, its rules and the example and takes a [decision](e1:the validation) on whether to add a new shape. add or modify rules or modify the example. So the next time the decompiler or compiler has to use a shape it manages to get closer to the [perfect abstraction](e1:the aim).",
@@ -100,7 +100,11 @@
           "explanation": 1,
           "anchor": "the aim"
         }
-      ]
+      ],
+      "stale": {
+        "parent": 1,
+        "old_text": "\u25cf  a shape fell short                                     ([the door](shapes))\n  \u2502     An abstraction did not explain enough, and the\n  \u2502     catalog that produced it sits in one folder.\n  \u2502     This skill is the only door into that folder;\n  \u2502     everything else only reads it.\n  \u2502\n  \u25cf  you show the ideal                                ([the input](The input))\n  \u2502     You bring what the shape should have looked like:\n  \u2502     a sketch, a photo, a marked screen, a rewrite.\n  \u2502     The run starts from that picture, not from a rule.\n  \u2502\n  \u25cf  claude weighs it against the catalog    ([the comparison](The comparison))\n  \u2502     Every shape's rules and example stand against\n  \u2502     the ideal, and one decision comes out: a new\n  \u2502     shape, a changed rule, or a changed example.\n  \u2502     The smallest change that would have produced\n  \u2502     the ideal wins.\n  \u2502     A shape for the project telling \u2014 the text that\n  \u2502     pins files and their entries in place of blocks \u2014\n  \u2502     enters the folder the same way, from a validated\n  \u2502     instance that says it fits the project.\n  \u2502\n  \u25cf  you give the word                       ([the validation](The validation))\n  \u2502     Claude shows the decision and the exact new text\n  \u2502     and writes nothing yet.\n  \u2502     The folder changes on your word only, and the\n  \u2502     shape file records which project validated it.\n  \u2502\n  \u25cf  the next telling lands closer                            ([the aim](Why))\n        Each validated change moves the decompiler and\n        the compiler nearer the perfect abstraction."
+      }
     }
   ],
   "not_covered": {
@@ -117,7 +121,8 @@
       23,
       25,
       27,
-      29
+      29,
+      31
     ]
   }
 }

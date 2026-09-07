@@ -7,25 +7,145 @@
       "block_lines": [
         [
           1,
-          78
+          83
         ]
       ],
-      "text": "\u25cf  the map command lives in this file\n\u2502     When you ask the tool to save an abstraction, everything\n\u2502     below happens here. The shared machinery \u2014 the pieces of\n\u2502     a file, [the checking of every pin](compiler/cli/human/decompiler.py:build_anchors) \u2014\n\u2502     lives in [the tool's main file](compiler/cli/human/decompiler.py), and this\n\u2502     file asks it for those steps.\n\u2502\n\u25cf  the tool picks up what is abstracted already            ([load_map](load_map))\n\u2502     In the project's human folder sits a second file. It\n\u2502     holds every abstraction written so far. On the first\n\u2502     run it is empty.\n\u2502\n\u25cf  the tool finds the lines the abstraction covers      ([entry_span](entry_span))\n\u2502     An abstraction can cover the whole file or one named piece.\n\u2502     Here the tool notes the first and the last line of what\n\u2502     it covers. A name that is not in the file stops the run.\n\u2502\n\u25cf  the tool numbers the abstraction                          ([next_id](next_id))\n\u2502     The first one it ever saved is number 1, the next is\n\u2502     number 2, and so on. The new one gets the next number.\n\u2502     The number is how you point at it later: you say\n\u2502     \"reword number 3\", and the tool knows which one you mean.\n\u2502\n\u25cf  the second file grows                                     ([cmd_map](cmd_map))\n\u2502     With the abstraction, the tool saves three things:\n\u2502         the words, exactly as written\n\u2502         the pins inside those words\n\u2502         for each pin, the lines of code it points at\n\u2502     Then the tool reads the whole file once more and counts\n\u2502     the lines of code that no abstraction points at yet.\n\u2502     It writes all of this into the second file \u2014 the record\n\u2502     in the project's human folder; for cmd_map.py it is named\n\u2502     explanation_compiler__cli__human__cmd_map.py.json. The\n\u2502     code file itself is never touched. Then the tool tells\n\u2502     you what it saved and how many lines are still bare.\n\u2502\n\u25cf  a whole project can carry one abstraction          ([map_project](map_project))\n      When you point the tool at a folder instead of a file,\n      the abstraction goes into human/human.json at the\n      project root. It has no lines of its own. Its pins point\n      at the files of the project \u2014 one line per file, what\n      the file is for. A pin that points anywhere else stops\n      the run.",
+      "text": "import json, the shell, the paths, and two neighbours:\n[the tool](compiler/cli/human/decompiler.py) \u2014 the pieces of a file, [the checking of every pin](compiler/cli/human/decompiler.py:build_anchors) \u2014\nand [the project hand](compiler/cli/human/cmd_project.py), which keeps the map of the whole project\n\n\n[cmd_map](cmd_map)(a)\n    a is what you typed after human map: the file, an optional --block, the text on stdin,\n    like `human map src/app.py <<'EOF' \u2026 EOF`.\n\n    \u25cf  the tool reads what you typed\n    \u2502     When the file name is the word project, the tool hands the\n    \u2502     whole run to the project hand and stops here; the abstraction\n    \u2502     lands in human/project.json. When it is a folder, the run goes\n    \u2502     to the front door below. Otherwise the run goes on with the file.\n    \u2502\n    \u25cf  the tool reads the file and finds its pieces        ([the pieces](compiler/cli/human/decompiler.py:block_spans))\n    \u2502     It climbs to [the project folder](compiler/cli/human/decompiler.py:find_root) \u2014 the one that holds\n    \u2502     human/human.json \u2014 reads the file once, and notes every named\n    \u2502     thing in it with the lines it covers. It does this so a pin can\n    \u2502     only point at a real piece.\n    \u2502\n    \u25cf  the tool picks up what is abstracted already        ([the record](load_map))\n    \u2502     In the project's human folder sits a second file. It holds every\n    \u2502     abstraction of this file written so far. On the first run it is\n    \u2502     empty.\n    \u2502\n    \u25cf  the tool finds the lines the abstraction covers    ([the lines](entry_span))\n    \u2502     An abstraction covers the whole file, or one piece when you said\n    \u2502     --block. Here the tool notes the first and the last line of what\n    \u2502     it covers.\n    \u2502\n    \u25cf  the tool numbers the abstraction                    ([the number](next_id))\n    \u2502     The first one it ever saved is number 1, the next is number 2,\n    \u2502     and so on. The number is how you point at it later.\n    \u2502\n    \u25cf  the tool checks every pin\n    \u2502     Each pin must name a real thing, no two pins may share their\n    \u2502     words, and [no circle](compiler/cli/human/decompiler.py:check_cycle) may run through earlier abstractions.\n    \u2502     One bad pin stops the run, and the tool says which.\n    \u2502\n    \u25cf  the second file grows\n          The tool saves three things: the words exactly as written, the\n          pins inside them, and for each pin the lines of code it points at.\n          When you handed in your own words and asked the tool to keep them\n          word for word, the entry is marked as yours, and no later mending\n          ever rewords it. Then the tool [counts the lines no abstraction points at yet](compiler/cli/human/decompiler.py:recompute),\n          writes the record \u2014 for cmd_map.py it is named\n          explanation_compiler__cli__human__cmd_map.py.json \u2014, [adds the file to the project's file list](compiler/cli/human/decompiler.py:register_file),\n          and tells you what it saved and how many lines are still bare.\n          The code file is never touched.\n\n[map_project](map_project)(a, root)\n    root is the project folder, the one that holds human/human.json.\n\n    \u25cf  the tool refuses a --block\n    \u2502     The project's front door has no pieces of its own, so there is\n    \u2502     nothing a block could name.\n    \u2502\n    \u25cf  the tool checks the pins and holds them to one rule    ([the rule](compiler/cli/human/decompiler.py:project_pins))\n    \u2502     A pin points at a file of the project, or at one block of a file.\n    \u2502     A pin that points anywhere else stops the run.\n    \u2502\n    \u25cf  human/human.json grows\n          The entry has no lines of its own. The tool writes it and tells\n          you how many pins reach how many files.\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nthe small hands\n\n[load_map](load_map)(map_path, name)\n    \u25cf  the tool opens the record at map_path\n          Every entry saved so far, checked for its shape. When there is no\n          record yet, the tool starts an empty one named after the file.\n\n[entry_span](entry_span)(name, code_name, code_path, spans, n)\n    \u25cf  the tool finds the lines a name covers\n          The whole file runs from line 1 to line n, its last line. A piece\n          runs from its first line to its last. A name that is neither stops\n          the run: it is not a block of the file.\n\n[next_id](next_id)(data)\n    \u25cf  the tool gives the new entry its number\n          One more than the highest number saved. The first is 1, the next\n          is 2, and so on \u2014 the number you say when you point at it later.",
       "anchors": [
+        {
+          "words": "the tool",
+          "file": "compiler/cli/human/decompiler.py"
+        },
         {
           "words": "the checking of every pin",
           "file": "compiler/cli/human/decompiler.py",
           "block": "build_anchors",
           "lines": [
             [
-              317,
-              340
+              364,
+              387
             ]
           ]
         },
         {
-          "words": "the tool's main file",
-          "file": "compiler/cli/human/decompiler.py"
+          "words": "the project hand",
+          "file": "compiler/cli/human/cmd_project.py"
+        },
+        {
+          "words": "cmd_map",
+          "block": "cmd_map",
+          "lines": [
+            [
+              49,
+              83
+            ]
+          ]
+        },
+        {
+          "words": "the pieces",
+          "file": "compiler/cli/human/decompiler.py",
+          "block": "block_spans",
+          "lines": [
+            [
+              210,
+              226
+            ]
+          ]
+        },
+        {
+          "words": "the project folder",
+          "file": "compiler/cli/human/decompiler.py",
+          "block": "find_root",
+          "lines": [
+            [
+              451,
+              458
+            ]
+          ]
+        },
+        {
+          "words": "the record",
+          "block": "load_map",
+          "lines": [
+            [
+              8,
+              13
+            ]
+          ]
+        },
+        {
+          "words": "the lines",
+          "block": "entry_span",
+          "lines": [
+            [
+              16,
+              21
+            ]
+          ]
+        },
+        {
+          "words": "the number",
+          "block": "next_id",
+          "lines": [
+            [
+              24,
+              25
+            ]
+          ]
+        },
+        {
+          "words": "no circle",
+          "file": "compiler/cli/human/decompiler.py",
+          "block": "check_cycle",
+          "lines": [
+            [
+              390,
+              402
+            ]
+          ]
+        },
+        {
+          "words": "counts the lines no abstraction points at yet",
+          "file": "compiler/cli/human/decompiler.py",
+          "block": "recompute",
+          "lines": [
+            [
+              423,
+              433
+            ]
+          ]
+        },
+        {
+          "words": "adds the file to the project's file list",
+          "file": "compiler/cli/human/decompiler.py",
+          "block": "register_file",
+          "lines": [
+            [
+              476,
+              483
+            ]
+          ]
+        },
+        {
+          "words": "map_project",
+          "block": "map_project",
+          "lines": [
+            [
+              28,
+              46
+            ]
+          ]
+        },
+        {
+          "words": "the rule",
+          "file": "compiler/cli/human/decompiler.py",
+          "block": "project_pins",
+          "lines": [
+            [
+              358,
+              361
+            ]
+          ]
         },
         {
           "words": "load_map",
@@ -54,26 +174,6 @@
             [
               24,
               25
-            ]
-          ]
-        },
-        {
-          "words": "cmd_map",
-          "block": "cmd_map",
-          "lines": [
-            [
-              49,
-              78
-            ]
-          ]
-        },
-        {
-          "words": "map_project",
-          "block": "map_project",
-          "lines": [
-            [
-              28,
-              46
             ]
           ]
         }
