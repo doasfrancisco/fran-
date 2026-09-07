@@ -25,6 +25,14 @@ def next_id(data):
     return max((e["id"] for e in data["explanations"]), default=0) + 1
 
 
+def verbatim_record(a, text):
+    if not getattr(a, "verbatim", False):
+        return {}
+    if decompiler.ANCHOR_RE.search(text):
+        sys.exit("the user's words go in plain; the pins come after, with human retext")
+    return {"verbatim": {"origin": text}}
+
+
 def map_project(a, root):
     if a.block:
         sys.exit("a project map has no blocks of its own; drop --block")
@@ -61,6 +69,7 @@ def cmd_map(a):
     map_path = decompiler.map_path_of(code_path, root)
     data = load_map(map_path, code_name)
     text = decompiler.read_text_arg(a)
+    extra = verbatim_record(a, text)
     n = len(lines)
     block = (a.block or code_name).strip()
     block_lines = entry_span(block, code_name, code_path, spans, n)
@@ -72,8 +81,7 @@ def cmd_map(a):
         sys.exit(str(e))
     record = {"id": eid, "block": block, "block_lines": block_lines,
               "text": text, "anchors": anchors}
-    if getattr(a, "verbatim", None):
-        record["verbatim"] = True
+    record.update(extra)
     data["explanations"].append(record)
     missing, blank = decompiler.recompute(data, lines)
     map_path.write_text(json.dumps(data, indent=2) + "\n")

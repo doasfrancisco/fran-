@@ -6,8 +6,6 @@ import os
 import re
 import shutil
 import socket
-import sys
-import tempfile
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -40,7 +38,7 @@ def scan_files(root):
                              if not x.startswith(".") and x not in IGNORE_DIRS
                              and not (d == root and x == "human"))
         for f in sorted(filenames):
-            if f.startswith(".") or f == "abstraction.txt":
+            if f.startswith("."):
                 continue
             p = d / f
             if p.suffix.lower() in SUFFIXES:
@@ -192,26 +190,6 @@ def cmd_skills(a):
             print(f"installed {name} -> {dst}")
 
 
-def cmd_map_h(a):
-    if not a.verbatim:
-        cmd_map.cmd_map(a)
-        return
-    want = Path(a.verbatim).read_text().strip()
-    text = decompiler.read_text_arg(a)
-    got = decompiler.ANCHOR_RE.sub(lambda m: m.group(1), text)
-    if got != want:
-        sys.exit("with the pins stripped the text is not the abstraction word for word; "
-                 "pins may go in, the words may not change")
-    fd, tmp = tempfile.mkstemp(suffix=".txt")
-    try:
-        os.write(fd, text.encode())
-        os.close(fd)
-        a.text = tmp
-        cmd_map.cmd_map(a)
-    finally:
-        os.unlink(tmp)
-
-
 def main():
     ap = argparse.ArgumentParser(prog="human")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -227,11 +205,12 @@ def main():
     m.add_argument("code_file")
     m.add_argument("--block")
     m.add_argument("--text")
-    m.add_argument("--verbatim")
+    m.add_argument("--verbatim", action="store_true")
     r = sub.add_parser("retext")
     r.add_argument("code_file")
     r.add_argument("id", type=int)
     r.add_argument("--text")
+    r.add_argument("--verbatim", action="store_true")
     u = sub.add_parser("undo")
     u.add_argument("code_file")
     s = sub.add_parser("show")
@@ -257,7 +236,7 @@ def main():
     if a.cmd in cmd_project.COMMANDS and a.code_file == cmd_project.WORD:
         cmd_project.COMMANDS[a.cmd](a)
         return
-    {"init": cmd_init, "serve": cmd_serve, "skills": cmd_skills, "map": cmd_map_h,
+    {"init": cmd_init, "serve": cmd_serve, "skills": cmd_skills, "map": cmd_map.cmd_map,
      "retext": decompiler.cmd_retext, "undo": decompiler.cmd_undo,
      "show": decompiler.cmd_show, "lines": decompiler.cmd_lines,
      "sync": decompiler.cmd_sync, "train": cmd_train.cmd_train}[a.cmd](a)

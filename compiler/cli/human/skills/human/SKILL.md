@@ -5,17 +5,25 @@ description: Compile a human abstraction — free text — into code, then map t
 
 # human
 
-The user writes the telling first — free text, no pins — and claude writes the code under it. The state is one `human/` folder at the project root: `human/human.json` holds the project's top entry and the file list, and each code file gets one `explanation_<path>.json` with the `/` of the path written as `__`. The abstraction goes in `abstraction.txt` at the root. The `human` CLI owns the `human/` folder — never edit a map by hand. The reader is `human/web.html`, served with `human serve`.
+The user writes the telling first — free text, no pins — and claude writes the code under it. The state is one `human/` folder at the project root: `human/human.json` holds the project's top entry and the file list, `human/project.json` holds the tellings of the whole — the user's abstraction among them — and each code file gets one `explanation_<path>.json` with the `/` of the path written as `__`. The `human` CLI owns the `human/` folder — never edit a map by hand. The reader is `human/web.html`, served with `human serve`.
 
 ## The run
 
 An abstraction comes in as free text: "an http server using python that returns hello world". One run turns it into a project, end to end. The user corrects afterwards, in the reader and with `retext` / `undo` / `sync`.
 
-1. **Keep the user's words.** Write the abstraction verbatim into `abstraction.txt` at the project root. Do not fix a spelling, do not trim a word. This file is the source the gate in step 5 measures against.
+1. **Register the project.** `human init` at the project root: it makes the `human/` folder, the empty project map, and the reader. Run it again after a file is added or removed, so the file list follows.
 
-2. **Write the code.** Write the code files with the Write tool, no comments. The gate is static, like a compiler's: the file must parse. `human map` runs the block reader over it, and an unparseable file is a refusal. There is no run and no test — trust that code which parses does what the abstraction says.
+2. **Keep the user's words.** Before any code, hand the abstraction to the tool, plain — no pins, no spelling fixed, no word trimmed:
 
-3. **Register the project.** `human init` at the project root scans the tree for code files, writes the list into `human/human.json`, and copies the reader into `human/`. Run it again after a file is added or removed.
+```bash
+human map project --verbatim <<'EOF'
+<the abstraction, verbatim>
+EOF
+```
+
+The entry is flagged as the user's words and keeps this text as its origin. A pin in it is refused: the pins come in step 5, when the things they point at exist. This copy, taken before the work, is what the gate in step 5 measures against.
+
+3. **Write the code.** Write the code files with the Write tool, no comments. The gate is static, like a compiler's: the file must parse. `human map` runs the block reader over it, and an unparseable file is a refusal. There is no run and no test — trust that code which parses does what the abstraction says.
 
 4. **Map the detailed telling.** For each code file, one whole-file entry. Its shape comes from the catalog in `shapes/` next to this file — the rail (below) by default, the skeleton when the user thinks in the file's own structure. The shape rule holds for this telling only; the user's abstraction in step 5 is verbatim and takes no shape:
 
@@ -27,17 +35,17 @@ EOF
 
 A refusal — a dead name, duplicate anchor words, a circle — is the gate speaking. Read it, fix the text, run again.
 
-5. **Map the user's words on top.** Insert pins into the abstraction — `[words](e1:anchor words)` pointing into the detailed entry — and map with the verbatim gate:
+5. **Pin the user's words.** Insert pins into the abstraction — `[words](src/app.py:e1:anchor words)` into the anchors of a file's detailed entry, `[words](src/app.py)` or `[words](src/app.py:block)` into the code — and hand it back with a plain retext:
 
 ```bash
-human map <code_file> --verbatim abstraction.txt <<'EOF'
+human retext project <id> <<'EOF'
 <the abstraction with pins, verbatim>
 EOF
 ```
 
-The CLI strips the pins out and compares the rest against `abstraction.txt` character for character. A changed word is a refusal. Pins go in; the user's words never change. The entry is marked verbatim, and no later `sync` rewords it.
+On a flagged entry the CLI strips the pins out and compares the words with the words it holds, character for character. One changed character is a refusal. Pins go in; the user's words never change through this road.
 
-6. **Map the project telling.** When the project has more than one file, one entry in `human/project.json` tells how the files answer together — what the user can ask for and which file does each part. Its shape is yours to choose; its pins reach the files, their blocks, and the anchors of the file entries (`[the answer](src/app.py:e1:the answerer)`). Show it, then `human map project` on the user's word.
+6. **Map the project telling.** When the project has more than one file, one more entry in `human/project.json` tells how the files answer together — what the user can ask for and which file does each part. Its shape is yours to choose; its pins reach the files, their blocks, and the anchors of the file entries (`[the answer](src/app.py:e1:the answerer)`). Show it, then `human map project` on the user's word.
 
 7. **Report.** `human show <code_file>` per file and `human show project`: the entries, the coverage, the warnings. Start `human serve` when no server runs, and give the user the reader address: `http://localhost:8010/human/web.html`.
 
@@ -55,7 +63,7 @@ The rules:
 - Anchor words are unique inside one text. Two pins cannot share the same bracketed words.
 - A block target must be a real block of the file. The CLI refuses a dead name.
 - An `e<id>:` target must name an existing entry and existing anchor words inside it. It cannot make a circle, and it never crosses a file border.
-- Map the detailed entry before the abstraction — an `e<id>:` pin must point at an entry that exists.
+- Map the detailed entry before the abstraction's pins — a pin into an entry must point at an entry that exists.
 - The layout carries no meaning: rails, arrows, and rules between groups are all allowed, because the pins — not the columns — carry the structure.
 
 ## The rail shape
@@ -92,7 +100,7 @@ A later entry may zoom on one dense block. A zoom may use a tighter form — one
 
 ## Rules
 
-- One project can hold many files; each file gets its own detailed entry, and the abstraction's pins may cross files with `[words](file.py:block)` pins.
-- When the code changes later, `human sync <code_file>`: exactly once per change, against the exact last-synced old version (`--old <file>` when it is not git HEAD).
-- When the user rewords the abstraction, write the new words to `abstraction.txt` first, then `human retext` with the pins re-inserted — the same verbatim law holds by hand: strip the pins, and the text must equal the file.
-- A repair must never change the words of the abstraction entry. When a sync or a stale repair would touch them, re-pin only.
+- One project can hold many files; each file gets its own detailed entry, and the abstraction's pins reach every file from the project map.
+- When the code changes later, `human sync <code_file>`: exactly once per change, against the exact last-synced old version (`--old <file>` when it is not git HEAD). Then `human sync project` for the project map, and `human sync project --stale <id>` when a file's entry made the abstraction stale.
+- Three roads lead to the abstraction entry. `human retext project <id>` — pins only; the words must match. `human retext project <id> --verbatim` — new words, on the user's word: the user reworded the abstraction, the text with its pins goes in as it is, and the origin is reset. `human sync` — claude rewords it when the code forces it: the smallest edit, in the user's voice, and the tool prints a warning with the changed lines. The origin stays in the map; `human show project` says when the words differ from it, and a `retext --verbatim` with the origin brings them back.
+- An abstraction mapped before the flag existed is flagged with `human retext <map> <id> --verbatim` and its own text — no word changes, the entry becomes known as the user's words.

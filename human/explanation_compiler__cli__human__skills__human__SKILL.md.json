@@ -7,10 +7,10 @@
       "block_lines": [
         [
           1,
-          98
+          106
         ]
       ],
-      "text": "The skill claude reads when you give an abstraction and want the code under it.\n\n  you: \"/human an http server using python that returns hello world\"\n       claude keeps your words as they are, in abstraction.txt at the root \u2014\n       no spelling fixed, no word trimmed                             ([the skill](human))\n       claude writes the code files, no comments; the gate is static like a\n       compiler's \u2014 the file must parse \u2014 and there is no run and no test\n       the tool registers the project: the file list, the reader, the empty\n       project map\n       claude maps the detailed telling of each file, in a shape from the\n       catalog beside this skill \u2014 the rail by default          ([the shape](The rail shape))\n       claude maps your words on top, with pins in them; the gate strips the\n       pins and compares the rest to abstraction.txt character for character \u2014\n       a changed word is a refusal, and the entry is marked as yours, so a\n       later repair of the code leaves its words alone\n       when the project has more than one file, claude maps one telling of\n       the project \u2014 what you can ask for and which file answers each part\n       claude reports each file and the project, and gives you the reader\n                                                                      ([the run](The run))\n\n  the pins tie a few words to a block, an earlier entry, another file, or an\n  entry of another file's map; unique words, real targets, no circle, the\n  detailed entry before the plainer one                              ([the pins](Pins))\n\n  afterwards: sync runs exactly once per change; a reword of your abstraction\n  goes to abstraction.txt first; a repair may re-pin your words but never\n  change them                                                        ([the rules](Rules))",
+      "text": "The skill claude reads when you give an abstraction and want the code under it.\n\n  you: \"/human an http server using python that returns hello world\"\n       the tool registers the project first \u2014 the file list, the reader,\n       the empty project map \u2014 so there is a place for your words before\n       there is any code                                           ([the skill](human))\n       claude hands your words to the project map as they are: no spelling\n       fixed, no word trimmed, no pin; the entry is flagged as yours and\n       keeps that first copy as its origin\n       claude writes the code files, no comments; the gate is static like a\n       compiler's \u2014 the file must parse \u2014 and there is no run and no test\n       claude maps the detailed telling of each file, in a shape from the\n       catalog beside this skill \u2014 the rail by default          ([the shape](The rail shape))\n       claude hands your words back with pins in them, through a plain\n       retext; the gate strips the pins and compares the rest with the words\n       it holds, character for character \u2014 one changed character is a\n       refusal, so the pins go in and your words do not move\n       when the project has more than one file, claude maps one more telling\n       of the project \u2014 what you can ask for and which file answers each part\n       claude reports each file and the project, and gives you the reader\n                                                                      ([the run](The run))\n\n  you: \"I would say it differently\"\n       your new words go in with --verbatim, pins and all; the origin is reset\n       to them, and the entries that stood on the old words are marked stale\n\n  you: change the code yourself, then \"sync\"\n       claude rewords your abstraction only where the code forces it \u2014 the\n       smallest edit, in your voice \u2014 and the tool warns you with the changed\n       lines; the origin stays in the map, show marks the entry against it,\n       and a retext --verbatim with the origin brings your words back\n\n  the pins tie a few words to a block, an earlier entry, another file, or an\n  entry of another file's map; unique words, real targets, no circle, the\n  detailed entry before the plainer one                              ([the pins](Pins))\n\n  afterwards: sync runs exactly once per change, then once more for the\n  project map, and with --stale when a file's entry made your abstraction\n  wrong; an abstraction mapped before the flag existed takes the flag with\n  a retext of its own text                                          ([the rules](Rules))",
       "anchors": [
         {
           "words": "the skill",
@@ -18,7 +18,7 @@
           "lines": [
             [
               6,
-              98
+              106
             ]
           ]
         },
@@ -27,8 +27,8 @@
           "block": "The rail shape",
           "lines": [
             [
-              61,
-              92
+              69,
+              100
             ]
           ]
         },
@@ -38,7 +38,7 @@
           "lines": [
             [
               10,
-              43
+              51
             ]
           ]
         },
@@ -47,8 +47,8 @@
           "block": "Pins",
           "lines": [
             [
-              44,
-              60
+              52,
+              68
             ]
           ]
         },
@@ -57,8 +57,8 @@
           "block": "Rules",
           "lines": [
             [
-              93,
-              98
+              101,
+              106
             ]
           ]
         }
@@ -75,28 +75,30 @@
       13,
       15,
       17,
-      19,
-      21,
+      23,
+      25,
       27,
       29,
-      31,
+      35,
       37,
       39,
-      41,
-      43,
       45,
       47,
+      49,
       51,
       53,
-      60,
-      62,
-      64,
-      77,
-      79,
-      88,
-      90,
-      92,
-      94
+      55,
+      59,
+      61,
+      68,
+      70,
+      72,
+      85,
+      87,
+      96,
+      98,
+      100,
+      102
     ]
   }
 }

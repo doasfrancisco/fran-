@@ -228,7 +228,10 @@ def check_text(text, row, data, spans, root):
     else:
         anchors = decompiler.build_anchors(text, data, spans, self_id, root)
     if row["level"] == "same":
-        gone = decompiler.needed_words(data, row["entry"]) - {x["words"] for x in anchors}
+        need = decompiler.needed_words(data, row["entry"])
+        if not is_project(row["file"]):
+            need |= cmd_project.pins_into(root, row["file"], row["entry"])
+        gone = need - {x["words"] for x in anchors}
         assert not gone, f"[RETEXT-ANCHORS] other entries point at the anchors {sorted(gone)}; " \
                          "the text must keep them"
     decompiler.check_cycle(data, self_id, anchors)
@@ -285,7 +288,7 @@ def run_with_text(fn, text, **kw):
     try:
         os.write(fd, text.encode())
         os.close(fd)
-        fn(argparse.Namespace(text=tmp, verbatim=None, **kw))
+        fn(argparse.Namespace(text=tmp, verbatim=False, **kw))
     finally:
         os.unlink(tmp)
 

@@ -36,6 +36,7 @@ Anchors look like [words](block) or [words](e1:anchor words). The rules:
 - A new bound name in the code needs a new line, in code order, in the style of the text. A dead name loses its line.
 - When the change adds a behaviour the reader would ask about — a new option, a new step, a new case — add a sentence for it where the reader meets it, in the style of the text. The reader does not read code: say what the thing does, not its class.
 - An entry whose words all still hold, and whose block gained no behaviour, gets no key in the answer.
+- An entry marked as the user's own words gets the smallest edit, in the user's voice, and no sentence the change does not force.
 - When an entry's own block was renamed, put its new name in blocks.
 
 Return one JSON object and nothing else:
@@ -44,23 +45,11 @@ Return one JSON object and nothing else:
  "blocks": {"<entry id>": "<the new name of the entry's block, only when it was renamed>"}}
 """
 
-STALE_PROMPT = """An explanation depends on another explanation through anchors. That other explanation changed. Mend the words the change made wrong, and carry the new facts down.
+STALE_PROMPT = """An explanation depends on other explanations through anchors. One or more of them changed. Mend the words the changes made wrong, and carry the new facts down.
 
-The old text of explanation <pid>:
+The changed explanations, each with its old text, its new text, and the diff between the two:
 
----
-<old_parent>
----
-
-The new text of explanation <pid>:
-
----
-<new_parent>
----
-
-The unified diff between the two:
-
-<parent_diff>
+<parents>
 
 The dependent text to repair:
 
@@ -68,12 +57,12 @@ The dependent text to repair:
 <child>
 ---
 
-Anchors look like [words](block) or [words](e<pid>:anchor words). The rules:
-- Rewrite a line only when the change upstairs makes its words wrong. Keep every line the change does not touch verbatim. Keep the vocabulary, the layout, and the indentation.
-- When explanation <pid> gained a sentence about a new behaviour, add a sentence for it in the dependent text, at the dependent's own level of detail — a plainer layer says less, never nothing. Pin it with [words](e<pid>:anchor words) when the new sentence upstairs has an anchor.
+Anchors look like [words](block), [words](path/of/file), or a pin at an anchor of a changed explanation in the form shown beside it. The rules:
+- Rewrite a line only when a change upstairs makes its words wrong. Keep every line the changes do not touch verbatim. Keep the vocabulary, the layout, and the indentation.
+- When a changed explanation gained a sentence about a new behaviour, add a sentence for it in the dependent text, at the dependent's own level of detail — a plainer layer says less, never nothing. Pin it at the new sentence's anchor when it has one.
 - Keep every anchor.
 - These anchor words are pointed at by other entries and must survive unchanged: <needed>
-
+<verbatim>
 Return one JSON object and nothing else:
 
 {"text": "<the full corrected dependent text>"}
@@ -412,12 +401,92 @@ def needed_words(data, eid):
             for a in e.get("anchors", []) if a.get("explanation") == eid}
 
 
+def stale_notes(e):
+    st = e.get("stale")
+    if not st:
+        return []
+    return st if isinstance(st, list) else [st]
+
+
+def add_note(e, note):
+    notes = stale_notes(e)
+    if not any(n["parent"] == note["parent"] and n.get("file") == note.get("file") for n in notes):
+        e["stale"] = notes + [note]
+
+
 def mark_children(data, eid, old_text):
     kids = []
     for c in children_of(data, eid):
-        c["stale"] = {"parent": eid, "old_text": old_text}
+        add_note(c, {"parent": eid, "old_text": old_text})
         kids.append(c["id"])
     return kids
+
+
+def stale_tail(e, same="explanation"):
+    parts = [f"{n['file']} entry {n['parent']}" if n.get("file") else f"{same} {n['parent']}"
+             for n in stale_notes(e)]
+    return f"  stale ({', '.join(parts)} changed)" if parts else ""
+
+
+def strip_pins(text):
+    return ANCHOR_RE.sub(lambda m: m.group(1), text)
+
+
+def origin_of(e):
+    v = e.get("verbatim")
+    if isinstance(v, dict):
+        return v.get("origin")
+    return strip_pins(e["text"]) if v else None
+
+
+def reworded(e):
+    origin = origin_of(e)
+    return origin is not None and strip_pins(e["text"]) != origin
+
+
+def verbatim_tail(e):
+    if origin_of(e) is None:
+        return ""
+    return "  your words, reworded since they were mapped" if reworded(e) else "  your words"
+
+
+def verbatim_hint(e, name):
+    if reworded(e):
+        return [f"entry {e['id']} holds your words, reworded since they were mapped; bring them back with "
+                f"human retext {name} {e['id']} --verbatim and the origin text kept in the map"]
+    return []
+
+
+def verbatim_gate(entry, text, flag):
+    if flag:
+        entry["verbatim"] = {"origin": strip_pins(text)}
+        return
+    if origin_of(entry) is not None and strip_pins(text) != strip_pins(entry["text"]):
+        sys.exit(f"entry {entry['id']} holds the user's words; pins may go in, the words may not change — "
+                 f"to change the words say --verbatim")
+
+
+def verbatim_mark(e):
+    return " — the user's own words" if origin_of(e) is not None else ""
+
+
+def verbatim_rule(e):
+    if origin_of(e) is None:
+        return ""
+    return "- This entry holds the user's own words: the smallest edit, in the user's voice, " \
+           "and no sentence the change does not force.\n"
+
+
+def warn_reworded(e, before_text, text, by):
+    if origin_of(e) is not None and strip_pins(before_text) != strip_pins(text):
+        print(f"warning: entry {e['id']} holds your words; the {by} changed them")
+
+
+def parent_note(pid, form, old, new):
+    diff = "\n".join(difflib.unified_diff(old.splitlines(), new.splitlines(), "old", "new", lineterm=""))
+    return (f"=== explanation {pid} — a pin at one of its anchors reads {form} ===\n\n"
+            f"The old text:\n\n---\n{old}\n---\n\nThe new text:\n\n---\n{new}\n---\n\n"
+            f"The unified diff between the two:\n\n{diff}")
 
 
 def recompute(data, lines):
@@ -434,7 +503,7 @@ def recompute(data, lines):
 
 
 def ask_claude(prompt, root):
-    r = subprocess.run(["claude", "-p", prompt, "--output-format", "json"],
+    r = subprocess.run(["claude", "-p", "--output-format", "json"], input=prompt,
                        capture_output=True, text=True, timeout=600, cwd=str(root))
     if r.returncode != 0:
         sys.exit(f"claude failed: {r.stderr[-500:]}")
@@ -446,6 +515,9 @@ def guard_structure(data, map_path):
     if any("parts" in e for e in data.get("explanations", [])):
         sys.exit(f"{map_path.name} carries the old part structure; "
                  f"this human reads anchors — rebuild the map with human map")
+    for e in data.get("explanations", []):
+        if isinstance(e.get("stale"), dict):
+            e["stale"] = [e["stale"]]
 
 
 def find_root(path):
@@ -560,18 +632,23 @@ def cmd_retext(a):
         check_cycle(data, a.id, anchors)
     except AssertionError as e:
         sys.exit(str(e))
+    verbatim_gate(entry, text, getattr(a, "verbatim", False))
     old_text = entry["text"]
     entry["text"] = text
     entry["anchors"] = anchors
-    entry.pop("stale", None)
-    kids = mark_children(data, a.id, old_text) if text != old_text else []
+    changed = strip_pins(text) != strip_pins(old_text)
+    kids = mark_children(data, a.id, old_text) if changed else []
     missing, blank = recompute(data, lines)
     map_path.write_text(json.dumps(data, indent=2) + "\n")
     print(f"entry {a.id} ({entry['block']}): text replaced, {anchor_counts(anchors)}")
+    if not changed and text != old_text:
+        print(f"entry {a.id}: pins changed, no word changed")
     if kids:
         print(f"entries {', '.join(map(str, kids))} depend on entry {a.id} and are marked stale; "
               f"repair each with human sync {code_name} --stale <id>")
-    report_project_stale(cmd_project.mark_stale(root, code_name, a.id, old_text) if text != old_text else [])
+    report_project_stale(cmd_project.mark_stale(root, code_name, a.id, old_text) if changed else [])
+    if stale_notes(entry):
+        print(f"entry {a.id} stays stale; repair it with human sync {code_name} --stale {a.id}")
     print(f"wrote {map_path}")
 
 
@@ -617,12 +694,11 @@ def cmd_show(a):
     code_name = rel_name(code_path, root)
     warnings = []
     for e in data["explanations"]:
-        tail = ""
-        if e.get("stale"):
-            tail = f"  stale (explanation {e['stale']['parent']} changed)"
+        tail = stale_tail(e) + verbatim_tail(e)
         where = fmt(expand(e["block_lines"])) or "-"
         print(f"{e['id']:3}  {e['block']:<24} {where:<14} "
               f"{len(e.get('anchors', []))} anchors{tail}")
+        warnings += verbatim_hint(e, code_name)
         derived = [m.group(1).strip() for m in ANCHOR_RE.finditer(e["text"])]
         stored = [x["words"] for x in e.get("anchors", [])]
         if derived != stored:
@@ -718,8 +794,6 @@ def entry_lines_set(e):
 
 
 def rewordable(e, code_name):
-    if e.get("verbatim"):
-        return False
     return e["block"] != code_name or any("block" in x and "file" not in x for x in e.get("anchors", []))
 
 
@@ -794,25 +868,22 @@ def repair_stale(a, code_path, root, map_path, data, lines, spans):
     entry = next((e for e in data["explanations"] if e["id"] == a.stale), None)
     if entry is None:
         sys.exit(f"no entry {a.stale} in {map_path.name}")
-    st = entry.get("stale")
-    if not st:
+    notes = stale_notes(entry)
+    if not notes:
         sys.exit(f"entry {a.stale} is not stale")
-    if entry.get("verbatim"):
-        sys.exit(f"entry {a.stale} holds the user's words verbatim; the tool does not reword them — "
-                 f"retext it on the user's word, and the stale mark goes")
-    parent = next((e for e in data["explanations"] if e["id"] == st["parent"]), None)
-    if parent is None:
-        sys.exit(f"explanation {st['parent']} no longer exists; retext entry {a.stale} instead")
+    parents = []
+    for st in notes:
+        parent = next((e for e in data["explanations"] if e["id"] == st["parent"]), None)
+        if parent is None:
+            sys.exit(f"explanation {st['parent']} no longer exists; retext entry {a.stale} instead")
+        parents.append(parent_note(parent["id"], f"[words](e{parent['id']}:anchor words)",
+                                   st["old_text"], parent["text"]))
     code_name = rel_name(code_path, root)
     need = needed_words(data, entry["id"]) | cmd_project.pins_into(root, code_name, entry["id"])
-    parent_diff = "\n".join(difflib.unified_diff(st["old_text"].splitlines(), parent["text"].splitlines(),
-                                                 "old", "new", lineterm=""))
-    prompt = (STALE_PROMPT.replace("<pid>", str(parent["id"]))
-              .replace("<old_parent>", st["old_text"])
-              .replace("<new_parent>", parent["text"])
-              .replace("<parent_diff>", parent_diff)
+    prompt = (STALE_PROMPT.replace("<parents>", "\n\n".join(parents))
               .replace("<child>", entry["text"])
-              .replace("<needed>", ", ".join(sorted(need)) or "none"))
+              .replace("<needed>", ", ".join(sorted(need)) or "none")
+              .replace("<verbatim>\n", verbatim_rule(entry)))
     text = None
     last = ""
     suffix = ""
@@ -844,14 +915,15 @@ def repair_stale(a, code_path, root, map_path, data, lines, spans):
     entry["text"] = text
     entry["anchors"] = entry_anchors
     entry.pop("stale")
+    warn_reworded(entry, old_text, text, "repair")
     report_text_diff(entry["id"], old_text, text)
     if text == old_text:
         print(f"entry {entry['id']}: no word changed")
-    kids = mark_children(data, entry["id"], old_text) if text != old_text else []
+    changed = strip_pins(text) != strip_pins(old_text)
+    kids = mark_children(data, entry["id"], old_text) if changed else []
     if kids:
         print(f"entries {', '.join(map(str, kids))} depend on entry {entry['id']} and are marked stale")
-    report_project_stale(cmd_project.mark_stale(root, code_name, entry["id"], old_text)
-                         if text != old_text else [])
+    report_project_stale(cmd_project.mark_stale(root, code_name, entry["id"], old_text) if changed else [])
     missing, blank = recompute(data, lines)
     map_path.write_text(json.dumps(data, indent=2) + "\n")
     print_coverage(missing, blank, lines)
@@ -911,7 +983,7 @@ def cmd_sync(a):
     print(f"candidate entries: {', '.join(str(i) for i in sorted(cand))}")
     span_table = "\n".join(f"{k}: {v[0]}-{v[1]}"
                            for k, v in sorted(spans.items(), key=lambda x: x[1])) or "none"
-    cands = "\n\n".join(f"=== entry {e['id']} (block {e['block']}) ===\n{e['text']}"
+    cands = "\n\n".join(f"=== entry {e['id']} (block {e['block']}){verbatim_mark(e)} ===\n{e['text']}"
                         for e in data["explanations"] if e["id"] in cand)
     needed = "\n".join(f"entry {i}: {', '.join(sorted(needed_words(data, i)))}"
                        for i in sorted(cand) if needed_words(data, i)) or "none"
@@ -955,9 +1027,11 @@ def cmd_sync(a):
         if e["block"] != before["block"]:
             print(f"entry {e['id']}: block renamed {before['block']!r} -> {e['block']!r}")
         if e["text"] != before["text"]:
+            warn_reworded(e, before["text"], e["text"], "sync")
             report_text_diff(e["id"], before["text"], e["text"])
-            stale_kids.update(mark_children(trial, e["id"], before["text"]))
-            project_kids += cmd_project.mark_stale(root, code_name, e["id"], before["text"])
+            if strip_pins(e["text"]) != strip_pins(before["text"]):
+                stale_kids.update(mark_children(trial, e["id"], before["text"]))
+                project_kids += cmd_project.mark_stale(root, code_name, e["id"], before["text"])
         elif e["id"] in cand:
             fresh = expand(e["block_lines"]) & inserted
             if fresh:

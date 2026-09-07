@@ -129,6 +129,7 @@ EOF
 - The project needs its `human/` folder first: run `human init` at the project root once.
 - `human map .` at the root maps the project itself: the entry goes into `human/human.json`, takes no `--block`, and its pins are file and `file:block` pins only. Write one line per file — what the file does, the file's path as the pin.
 - `human map project` maps the project telling of §8: the entry goes into `human/project.json`, takes no `--block`, and its pins may be file, `file:block`, `file:e<id>:words`, and `e<id>:` into an earlier entry of the same map.
+- `--verbatim` on a map says the text is the user's own words: it goes in plain — a pin in it is refused, because the words come before the things they point at — the entry is flagged, and the text is kept as its origin. The pins come later with `human retext`. The human skill uses this for the abstraction; here it is for any words the user wrote and wants kept.
 - The run is deterministic and instant: human parses the anchors out of the text, checks every target, refuses duplicates, dead names, and circles, resolves each block anchor to its exact lines, and appends one entry. There is no claude call.
 - Order matters once: an `e<id>:` target must name an entry that already exists, so map the detailed entry before the plainer one that points into it.
 
@@ -142,7 +143,11 @@ human retext <code_file> <id> <<'EOF'
 EOF
 ```
 
-The new text may change anything except the anchors other entries point at — human refuses a text that drops one. All other anchors may be added, removed, or reworded, and are revalidated. When the text changed and other entries point into this one, human marks them **stale**; repair each with `human sync <code_file> --stale <id>` when the user gives the word.
+The new text may change anything except the anchors other entries point at — human refuses a text that drops one. All other anchors may be added, removed, or reworded, and are revalidated. When a word changed and other entries point into this one, human marks them **stale**; repair each with `human sync <code_file> --stale <id>` when the user gives the word. A retext that only adds or moves pins marks nothing.
+
+A retext never removes a stale mark from the entry itself — only `--stale` does, so the tool knows the repair was made and not guessed. When the entry is stale, the retext says so and names the repair.
+
+On an entry flagged as the user's words, a plain retext is pins only: the tool strips the pins and compares the words with the words it holds, character for character; one changed character is refused. `human retext <code_file> <id> --verbatim` is the road for new words on the user's word — the text with its pins goes in as it is, and the origin is reset. On an entry with no flag, `--verbatim` with the entry's own text puts the flag on and records the origin — the road for words mapped before the flag existed, when the user says the entry is theirs.
 
 When the user says "rollback" or "undo": `human undo <code_file>` removes the last entry. An entry that other entries point into cannot be undone before them.
 
@@ -158,9 +163,10 @@ human sync <code_file>
 - A deterministic pass re-resolves every block anchor and entry span from the new code. A change that only moves lines ends here — no claude call.
 - One claude call then repairs the words of the entries the change touches: it mends the stale lines, adds a sentence for each behaviour the change added — a new option, a new step, a new case — keeps every anchor, retargets an anchor whose block was renamed, and renames an entry's block when the code renamed it. The call runs at the project root and reads the whole file, plus the project files the file imports when a new sentence needs them. Gates check every anchor and retry up to `--tries` (default 4). When new lines land inside an entry and its text did not change, sync warns: those lines got no sentence.
 - Entries that point into a repaired entry are marked stale — in the file's map, and in the project map when one of its entries pins the repaired entry.
-- Two kinds of entry are never reworded by a sync: an entry mapped with `--verbatim` — the user's own words — and a whole-file layer with no pin of its own into the code. They receive a new fact through `--stale`, one layer down; a verbatim entry not even then — the tool says so, and the user retexts it or leaves it.
+- A whole-file layer with no pin of its own into the code is never a sync candidate — the sync has nothing to compare it to. It receives a new fact through `--stale`, one layer down.
+- An entry flagged as the user's words is reworded by a sync like any other, because the map must follow the code; the letter asks for the smallest edit, in the user's voice, and no sentence the change does not force. The tool then prints a warning that names the entry and the changed lines. The origin stays in the map: `human show` says "your words, reworded since they were mapped" and names the `retext --verbatim` that brings them back. Tell the user when this happened.
 
-`human sync project` when the code changed: the old state is git `HEAD`, no `--old`. A deterministic pass re-resolves every file, block, and `file:e<id>:words` pin; a gone target is reported. One claude call then mends the entries that pin a changed file: it gets the root, the changed files with their paths — it reads them —, their diff, and the pins whose target is gone with the anchors that entry holds now. The same rules and gates as a file sync. `human sync project --stale <id>` repairs a project entry that a file's entry made stale: the parent text comes from that file's map, and a carried fact is pinned `file:e<id>:words`.
+`human sync project` when the code changed: the old state is git `HEAD`, no `--old`. A deterministic pass re-resolves every file, block, and `file:e<id>:words` pin; a gone target is reported. One claude call then mends the entries that pin a changed file: it gets the root, the changed files with their paths — it reads them —, their diff, and the pins whose target is gone with the anchors that entry holds now. The same rules and gates as a file sync. `human sync project --stale <id>` repairs a project entry that file entries made stale: each note names its file, the parent text comes from that file's map, and a carried fact is pinned `file:e<id>:words`. A close of a training session marks the project entry once per changed parent; the notes wait for this repair.
 
 `human sync .` at the root re-resolves the pins of `human/human.json` against the project — no claude call. A pin whose file is gone is reported; repair it with `human retext`.
 
@@ -170,7 +176,7 @@ When an **explanation** changed and its dependents are stale:
 human sync <code_file> --stale <id>
 ```
 
-One claude call reads the old and new text of the changed parent, mends the words of the dependent that went wrong, and carries a new fact of the parent down at the dependent's own level — pinned at the parent's new anchor — keeping every anchor. Repairs run one layer at a time, downward only, on the user's word — never recursively in one breath.
+The stale mark is a list: one note per changed parent, each with the parent's text as it was when the dependent last matched it. A parent that changes twice before a repair keeps its first old text — the versions between are the base of nothing. One claude call reads every note — the old text, the parent as it is now, the diff of each — mends the words of the dependent that went wrong, and carries a new fact of a parent down at the dependent's own level — pinned at the parent's new anchor — keeping every anchor. The whole list goes with the repair. Repairs run one layer at a time, downward only, on the user's word — never recursively in one breath.
 
 ## 6. Report
 
