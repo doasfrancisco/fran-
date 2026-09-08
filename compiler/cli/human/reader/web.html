@@ -20,9 +20,9 @@
   html,body{height:100%;}
   body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);line-height:1.5;-webkit-font-smoothing:antialiased;}
   @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
-  main{height:100%;display:flex;justify-content:center;gap:10px;padding:14px;}
+  main{height:100%;display:flex;gap:10px;padding:14px;}
   #side{flex:0 0 240px;display:flex;flex-direction:column;gap:10px;min-height:0;}
-  #wrap{width:min(720px,100%);display:flex;flex-direction:column;min-height:0;}
+  #wrap{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0;}
   .pane{background:var(--surface);border:1px solid var(--hair);border-radius:10px;overflow:hidden;}
   #projbar{display:flex;align-items:center;gap:9px;padding:8px 14px;font-size:13px;flex-shrink:0;}
   .caret{color:var(--faint);font-size:15px;line-height:1;}
@@ -376,8 +376,7 @@ function render(){
   var name=nameOf(cur.file);
   var html=notice?'<div class="pill note'+(bad?" bad":"")+'">'+esc(notice)+'</div>':"";
   if(!cur.d.explanations.length){
-    var word=cur.code===null?"loading the file":"no map for this file yet";
-    html+='<div class="pill">'+esc(word)+queuedMark(name)+'</div>';
+    var word=cur.code===null?"loading the file":"no abstraction for this file yet";
     if(name&&cur.code!==null){
       html+=mapSlotHtml(name,"write an abstraction");
       if(name!=="project") html+=codeSlotHtml();
@@ -386,7 +385,7 @@ function render(){
       html+='<div class="chunk">'+esc(lines.map(function(l,i){return String(i+1).padStart(pad)+"  "+l;}).join("\n"))+'</div>';
     }
     rows.innerHTML=html;
-    document.getElementById("head").textContent=cur.name+"/"+cur.file+"  ·  no map";
+    document.getElementById("head").innerHTML=esc(cur.name+"/"+cur.file+"  ·  "+word)+queuedMark(name);
     header(); focusEditor();
     return;
   }
