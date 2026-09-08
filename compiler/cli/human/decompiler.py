@@ -647,6 +647,8 @@ def cmd_retext(a):
         print(f"entries {', '.join(map(str, kids))} depend on entry {a.id} and are marked stale; "
               f"repair each with human sync {code_name} --stale <id>")
     report_project_stale(cmd_project.mark_stale(root, code_name, a.id, old_text) if changed else [])
+    from . import cmd_train
+    cmd_train.refresh_row(root, code_name, a.id, old_text, text)
     if stale_notes(entry):
         print(f"entry {a.id} stays stale; repair it with human sync {code_name} --stale {a.id}")
     print(f"wrote {map_path}")

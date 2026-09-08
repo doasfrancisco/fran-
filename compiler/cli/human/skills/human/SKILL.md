@@ -47,7 +47,26 @@ On a flagged entry the CLI strips the pins out and compares the words with the w
 
 6. **Map the project telling.** When the project has more than one file, one more entry in `human/project.json` tells how the files answer together — what the user can ask for and which file does each part. Its shape is yours to choose; its pins reach the files, their blocks, and the anchors of the file entries (`[the answer](src/app.py:e1:the answerer)`). Show it, then `human map project` on the user's word.
 
-7. **Report.** `human show <code_file>` per file and `human show project`: the entries, the coverage, the warnings. Start `human serve` when no server runs, and give the user the reader address: `http://localhost:8010/human/web.html`.
+7. **Report.** `human show <code_file>` per file and `human show project`: the entries, the coverage, the warnings. Start `human serve` when no server runs, give the user the reader address, `http://localhost:8010/human/web.html`, and arm the watch (below) so a writing in the reader reaches you.
+
+## The reader writes
+
+The user can write in the reader instead of the terminal. Every entry has a "write" control that opens its raw text — pins and all, the same text `human retext` takes — and a "compile" button. A file with no map offers "write a telling" and "write the code"; the project map offers "new abstraction". Until "compile" is pressed the draft lives in the browser only. On "compile" the server runs the CLI with the user's words:
+
+- an entry rewritten → `human retext <name> <id> --verbatim`: the origin is reset, the dependents of the old words are marked stale;
+- a first telling → `human map <name> --verbatim`: plain words, a pin is refused;
+- code on a file with no map → the file is written; when no pin of any map reaches it, nothing more happens.
+
+A refusal comes back to the browser in the CLI's words and nothing is queued. A success appends one event to `human/server/events.jsonl` — the kind, the absolute paths of the map and the file, the entry id, the old and the new text, and for a code write the pins that reach the file — and the reader shows the entry as compiling until claude is done.
+
+**Listening.** Once per session, arm one persistent Monitor on `human watch` from the project root. It prints every event claude has not finished — one JSON line each — then follows. An event printed in an earlier session comes back with `"replay": true`: check `human show` before you sync anything, the run may be half done. When the event's run is complete, `human ack <seq>`; the queue advances and the reader drops the mark. Take the events in order, one at a time.
+
+**The run per event.**
+
+- `map` on the project: the user's words are in, so start at step 3 of the run — the code, the detailed tellings, the project telling, and last the pins into the user's words with a plain retext.
+- `map` on a file: the user told the file in their own words; write or change the code under those words, `human sync` the maps that pin the file, then pin the words with a plain retext.
+- `retext`: read the diff of the old and the new text, the files the pins name with their lines, and the whole project map. Write the code that the new words ask for — nothing else. Then `human sync <file>` once per changed file, `human sync project`, `human sync project --stale <id>` for every note, and last a plain retext that pins the new sentences into what they name. The user's entry may get a stale note of its own from the file syncs; the repair keeps the user's voice and warns when it changes a word.
+- `code`: the pins in the event say which tellings stand on the changed file. `human sync project` re-resolves the project pins; `human sync <other file>` re-resolves a cross-file pin from another map. Mend a telling that the change made wrong.
 
 ## Pins
 

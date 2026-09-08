@@ -191,12 +191,12 @@ After a retext, an undo, or a sync, report what changed and confirm with `human 
 
 ## 7. Train
 
-`human/training/` holds the sessions, one JSON file each. `human train --open` starts a session; it stays open until `human train --close`. While a session is open, the explain step of §2 writes **three versions** of the same abstraction and registers them with `human train`, one row per file. The user reads them side by side in the feed — `/human/feed.html` on the same address as the reader — and picks one there. Nothing goes into the map before the close.
+`human/training/` holds the sessions, one JSON file each. `human train --open` starts a session; it stays open until `human train --close`. While a session is open, the explain step of §2 writes **the versions** of the same abstraction — two for a new abstraction, three for a sync — and registers them with `human train`, one row per file. The user reads them side by side in the feed — `/human/feed.html` on the same address as the reader — and picks one there. Nothing goes into the map before the close.
 
-The three versions, in this order:
+The versions, in this order:
 
 1. `best` — the shape the catalog gives this file today, by the rules of §2.
-2. `refinement` — for a new abstraction: the best shape after every correction the user validated in this project; leave it out when there is none. For a sync row the CLI fills this slot itself with the text the map holds, and the feed labels it `current`; write it only when the user asks for a rewrite of that text.
+2. `refinement` — sync rows only. The CLI fills this slot itself with the text the map holds, and the feed labels it `current`; write it only when the user asks for a rewrite of that text. A create row has no refinement: the CLI refuses one, and the feed shows two cards, best and free.
 3. `free` — the explanation that would help the user most, under no shape rule. Only the anchor rules of §1 hold.
 
 Each version goes in with its own call, the text on stdin like `human map`, and names the shape it follows:
@@ -211,7 +211,7 @@ EOF
 
 - `--kind create` is the default: a new abstraction. `--kind sync` is for a file whose code changed — run `human sync` first, so the middle slot holds the repaired text.
 - `--entry <id>` when the versions refine an entry that exists; the close runs `human retext`. `--block <name>` when the versions zoom on one block; the close runs `human map --block`. Neither: a first entry of an unmapped file, or a plainer layer whose pins are `e<id>:`.
-- The first call for a file makes the row and takes a full copy of the code; the next calls fill the other slots. A row of the project — `human train project` — copies every file of the project for a new abstraction, and the changed files with their diff for a sync row. Every call checks the anchors like `human map`, so a picked text can always be applied.
+- The first call for a file makes the row and takes a full copy of the code; the next calls fill the other slots. A row of the project — `human train project` — copies every file of the project for a new abstraction, and the changed files with their diff for a sync row. Every call checks the anchors like `human map`, so a picked text can always be applied. Every call ends with the filled slots and, when one is missing, an `empty:` line — write that slot before the report; the close names every row that still has an empty slot.
 - A second call with the same `--as` puts the new text on top and keeps the earlier text in the version's history — this is how a rewrite the user asks for goes in. The feed shows the rewrites of a card under a small picker, `v1 v2 v3`, so the user can read how the text came to be; the pick and the close take the latest. The code must not have changed since the row was made.
 - After the last version, tell the user the feed address and stop.
 

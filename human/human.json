@@ -59,6 +59,7 @@
     "compiler/cli/human/cmd_map.py",
     "compiler/cli/human/cmd_project.py",
     "compiler/cli/human/cmd_train.py",
+    "compiler/cli/human/cmd_watch.py",
     "compiler/cli/human/decompiler.py",
     "compiler/cli/human/reader/feed.html",
     "compiler/cli/human/reader/trees.js",
@@ -72,6 +73,7 @@
     "compiler/cli/human/skills/decompile/SKILL.md",
     "compiler/cli/human/skills/human/SKILL.md",
     "compiler/cli/human/skills/shapes/SKILL.md",
+    "feedback/FEEDBACK.md",
     "feedback/sessions.json"
   ],
   "ignore": [

@@ -17,3 +17,5 @@ graphify-out/
 human/training/
 human/trees.js
 human/web.html
+human/server/
+**/human/server/

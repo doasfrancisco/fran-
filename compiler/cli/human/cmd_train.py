@@ -170,6 +170,8 @@ def pick(root, sid, row, slot, comment=None):
         if not isinstance(row, int) or not 0 <= row < len(data["rows"]):
             return 400, f"no row {row} in session {sid}"
         r = data["rows"][row]
+        if slot == "refinement" and r["kind"] == "create":
+            return 400, f"row {row} is a create row; pick best or free"
         if slot is not None and r["versions"][slot] is None:
             return 400, f"row {row} has no {slot} version yet"
         r["picked"] = slot
@@ -177,6 +179,30 @@ def pick(root, sid, row, slot, comment=None):
         r["edited"] = now()
         save_session(path, data)
     return 200, r
+
+
+def refresh_row(root, code_name, eid, old_text, new_text):
+    if new_text == old_text:
+        return
+    path, session = open_session(root)
+    if not path:
+        return
+    for i, row in enumerate(session["rows"]):
+        if row["file"] != code_name or row["entry"] != eid or row["applied"] or row["level"] != "same":
+            continue
+        if row["picked"] and version_text(row["versions"][row["picked"]]) == new_text:
+            return
+        row["before"] = new_text
+        mid = row["versions"]["refinement"]
+        followed = mid is not None and mid["text"] == old_text and not mid["history"]
+        if followed:
+            row["versions"]["refinement"] = version(new_text, None, mid)
+        row["edited"] = now()
+        save_session(path, session)
+        print(f"row {i} of session {session['session_id']} follows the retext: "
+              + ("the middle card takes the new text and keeps the old one as v1"
+                 if followed else "its reference moves; the rewritten middle card stays"))
+        return
 
 
 def whole_file_entry(data, code_name):
@@ -238,6 +264,14 @@ def check_text(text, row, data, spans, root):
     return anchors
 
 
+def slots_of(row):
+    return SLOTS if row["kind"] == "sync" else ("best", "free")
+
+
+def empty_slots(row):
+    return [s for s in slots_of(row) if row["versions"][s] is None]
+
+
 def cmd_add(a, root):
     if not a.slot:
         sys.exit("say which version this is: --as best, --as refinement or --as free")
@@ -253,7 +287,10 @@ def cmd_add(a, root):
         code_name = decompiler.rel_name(code_path, root)
     row = next((r for r in session["rows"] if r["file"] == code_name and r["applied"] is None), None)
     made = row is None
-    code_path, src, spans, data = source_of(root, code_name, a.kind if made else row["kind"])
+    kind = a.kind if made else row["kind"]
+    if kind == "create" and a.slot == "refinement":
+        sys.exit("a create row has two versions, best and free; the refinement is for a sync row")
+    code_path, src, spans, data = source_of(root, code_name, kind)
     text = decompiler.read_text_arg(a)
     if made:
         row = new_row(a, root, code_path, code_name, data, src)
@@ -278,8 +315,11 @@ def cmd_add(a, root):
     if old is not None:
         n = len(row["versions"][a.slot]["history"])
         print(f"{a.slot} rewritten; {n} earlier text{'s' if n > 1 else ''} kept in its history")
-    filled = [s for s in SLOTS if row["versions"][s] is not None]
+    filled = [s for s in slots_of(row) if row["versions"][s] is not None]
     print(f"versions: {', '.join(filled)}")
+    empty = empty_slots(row)
+    if empty:
+        print(f"empty: {', '.join(empty)}")
     print(f"wrote {path}")
 
 
@@ -315,6 +355,10 @@ def cmd_close(root):
     order = sorted(range(len(session["rows"])),
                    key=lambda i: (session["rows"][i]["level"] == "below", i))
     failed = []
+    for i, row in enumerate(session["rows"]):
+        empty = empty_slots(row)
+        if empty and not row["applied"]:
+            print(f"row {i}: {row['file']}, no {' and no '.join(empty)} version")
     for i in order:
         row = session["rows"][i]
         if not row["picked"] or row["applied"]:

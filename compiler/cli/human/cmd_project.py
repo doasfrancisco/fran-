@@ -202,6 +202,8 @@ def cmd_retext(a):
               f"repair each with human sync project --stale <id>")
     if decompiler.stale_notes(entry):
         print(f"entry {a.id} stays stale; repair it with human sync project --stale {a.id}")
+    from . import cmd_train
+    cmd_train.refresh_row(root, WORD, a.id, old_text, text)
     print(f"wrote {map_path(root)}")
 
 

@@ -130,9 +130,11 @@ function renderTop(){
   document.getElementById("count").textContent=cur.rows.length+" files · "+picked+" picked";
 }
 
+function slotsOf(r){return r.kind==="sync"?SLOTS:["best","free"];}
+
 function cardHtml(r,i,slot,k){
   var v=versionOf(r,slot), t=v?v.text:null, on=r.picked===slot;
-  var dots=SLOTS.map(function(s,j){return j===k?"<b>●</b>":"●";}).join("");
+  var dots=slotsOf(r).map(function(s,j){return j===k?"<b>●</b>":"●";}).join("");
   var label=slot;
   if(r.kind==="sync"&&slot==="refinement"&&t===r.before) label="current";
   var head='<div class="head"><span class="file">'+esc(r.file)+'</span><span>'+esc(r.kind)+' · '+esc(r.level)
@@ -196,7 +198,7 @@ function sendPick(row,slot,comment,b){
 }
 
 function rowHtml(r,i){
-  return '<div class="strip">'+SLOTS.map(function(s,k){return cardHtml(r,i,s,k);}).join("")+'</div>';
+  return '<div class="strip">'+slotsOf(r).map(function(s,k){return cardHtml(r,i,s,k);}).join("")+'</div>';
 }
 
 function renderRows(){

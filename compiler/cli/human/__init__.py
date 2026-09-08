@@ -10,7 +10,7 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from . import cmd_map, cmd_project, cmd_train, decompiler
+from . import cmd_map, cmd_project, cmd_train, cmd_watch, decompiler
 
 PKG = Path(__file__).parent
 
@@ -118,18 +118,30 @@ class FreshHandler(SimpleHTTPRequestHandler):
         if path == "/human/training/":
             self.send_json(200, cmd_train.list_sessions(root))
             return
+        if path == "/human/server/queue":
+            self.send_json(200, cmd_watch.pending(root))
+            return
         super().do_GET()
 
+    def read_body(self):
+        n = int(self.headers.get("Content-Length") or 0)
+        return json.loads(self.rfile.read(n) or b"{}")
+
     def do_POST(self):
-        m = re.fullmatch(r"/human/training/([^/]+)/pick", self.path.split("?")[0])
-        if not m:
-            self.send_json(404, {"error": "not found"})
-            return
+        path = self.path.split("?")[0]
+        root = Path(self.directory)
+        m = re.fullmatch(r"/human/training/([^/]+)/pick", path)
         try:
-            n = int(self.headers.get("Content-Length") or 0)
-            body = json.loads(self.rfile.read(n) or b"{}")
-            status, out = cmd_train.pick(Path(self.directory), m.group(1),
-                                         body.get("row"), body.get("picked"), body.get("comment"))
+            if path == "/human/compile":
+                body = self.read_body()
+                status, out = cmd_watch.compile_writing(root, body.get("name"), body.get("kind"),
+                                                        body.get("id"), body.get("text"))
+            elif m:
+                body = self.read_body()
+                status, out = cmd_train.pick(root, m.group(1),
+                                             body.get("row"), body.get("picked"), body.get("comment"))
+            else:
+                status, out = 404, "not found"
         except (ValueError, OSError) as e:
             status, out = 400, str(e)
         self.send_json(status, out if status == 200 else {"error": out})
@@ -169,6 +181,7 @@ def cmd_serve(a):
     if tip:
         print(f"http://{tip}:{a.port}/human/web.html")
     print("the feed is at /human/feed.html on the same address")
+    print("a writing in the reader lands in human/server/; read it with: human watch")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
@@ -232,6 +245,10 @@ def main():
     t.add_argument("--entry", type=int)
     t.add_argument("--block")
     t.add_argument("--text")
+    w = sub.add_parser("watch")
+    w.add_argument("--once", action="store_true")
+    c = sub.add_parser("ack")
+    c.add_argument("seq", type=int)
     a = ap.parse_args()
     if a.cmd in cmd_project.COMMANDS and a.code_file == cmd_project.WORD:
         cmd_project.COMMANDS[a.cmd](a)
@@ -239,7 +256,8 @@ def main():
     {"init": cmd_init, "serve": cmd_serve, "skills": cmd_skills, "map": cmd_map.cmd_map,
      "retext": decompiler.cmd_retext, "undo": decompiler.cmd_undo,
      "show": decompiler.cmd_show, "lines": decompiler.cmd_lines,
-     "sync": decompiler.cmd_sync, "train": cmd_train.cmd_train}[a.cmd](a)
+     "sync": decompiler.cmd_sync, "train": cmd_train.cmd_train,
+     "watch": cmd_watch.cmd_watch, "ack": cmd_watch.cmd_ack}[a.cmd](a)
 
 
 if __name__ == "__main__":
