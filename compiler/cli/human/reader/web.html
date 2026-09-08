@@ -55,7 +55,8 @@
   .bhead .label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;}
   .queued{color:var(--spec);}
   .chunk.plain,.chunk.blank{cursor:text;}
-  .chunk.blank{color:var(--faint);}
+  .chunk.blank{color:var(--faint);padding:6px 14px 14px;transition:color .12s,background .12s;}
+  .chunk.blank:hover{color:var(--ink);background:var(--spec-wash-2);}
   .chunk textarea{display:block;width:100%;font:inherit;line-height:inherit;white-space:pre;overflow-wrap:normal;overflow-x:auto;overflow-y:hidden;background:transparent;color:var(--ink);border:0;outline:0;padding:0;margin:0;resize:none;tab-size:4;}
   .pill.note{white-space:pre-wrap;}
   .pill.bad{color:var(--call);}
@@ -378,15 +379,17 @@ function render(){
   if(!cur.d.explanations.length){
     var word=cur.code===null?"loading the file":"no abstraction for this file yet";
     if(name&&cur.code!==null){
-      html+=mapSlotHtml(name,"write an abstraction");
+      html+=mapSlotHtml(name,"new abstraction");
       if(name!=="project") html+=codeSlotHtml();
     }else if(lines.length){
       var pad=String(lines.length).length;
       html+='<div class="chunk">'+esc(lines.map(function(l,i){return String(i+1).padStart(pad)+"  "+l;}).join("\n"))+'</div>';
     }
+    var top0=rows.scrollTop;
     rows.innerHTML=html;
     document.getElementById("head").innerHTML=esc(cur.name+"/"+cur.file+"  ·  "+word)+queuedMark(name);
     header(); focusEditor();
+    rows.scrollTop=top0;
     return;
   }
   var opened=0;
@@ -409,19 +412,21 @@ function render(){
   });
   var bare=(cur.d.not_covered&&cur.d.not_covered.code_lines||[]).length;
   if(bare) html+='<div class="pill">▹ '+bare+' bare lines</div>';
+  var top=rows.scrollTop;
   rows.innerHTML=html;
   document.getElementById("head").textContent=
     cur.name+"/"+cur.file+"  ·  "+opened+"/"+cur.d.explanations.length+" open";
   header(); focusEditor();
+  rows.scrollTop=top;
 }
 
-function fit(ta){ta.style.height="auto";ta.style.height=ta.scrollHeight+"px";}
+function fit(ta){var top=rows.scrollTop;ta.style.height="auto";ta.style.height=ta.scrollHeight+"px";rows.scrollTop=top;}
 
 function focusEditor(){
   var ta=rows.querySelector(".chunk textarea");
   if(!ta) return;
   fit(ta);
-  ta.focus();
+  ta.focus({preventScroll:true});
   var pos=Math.min(caretWanted,ta.value.length);
   ta.setSelectionRange(pos,pos);
 }

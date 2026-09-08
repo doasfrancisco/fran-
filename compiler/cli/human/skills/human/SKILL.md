@@ -51,7 +51,7 @@ On a flagged entry the CLI strips the pins out and compares the words with the w
 
 ## The reader writes
 
-The user can write in the reader instead of the terminal. Every entry is a notepad: a click on its text opens it in place, in its raw form — pins as `[words](target)`, the same text `human retext` takes — and a click outside, or Escape, shows it drawn again. A file with no map shows "write an abstraction" above its code, and the code itself opens the same way; the project map shows "new abstraction". Typing saves nothing; Ctrl+S keeps the draft in the browser, and "unsaved" stands in the head bar until then. The "compile" button at the top right shows while a text differs from the map, and the map changes only when it is pressed. On "compile" the server runs the CLI with the user's words, one call per changed text:
+The user can write in the reader instead of the terminal. Every entry is a notepad: a click on its text opens it in place, in its raw form — pins as `[words](target)`, the same text `human retext` takes — and a click outside, or Escape, shows it drawn again. A file with no map shows "new abstraction" above its code, and the code itself opens the same way; the project map shows the same line on top. Typing saves nothing; Ctrl+S keeps the draft in the browser, and "unsaved" stands in the head bar until then. The "compile" button at the top right shows while a text differs from the map, and the map changes only when it is pressed. On "compile" the server runs the CLI with the user's words, one call per changed text:
 
 - an entry rewritten → `human retext <name> <id> --verbatim`: the origin is reset, the dependents of the old words are marked stale;
 - a first telling → `human map <name> --verbatim`: plain words, a pin is refused;
