@@ -259,17 +259,25 @@ function fmtSpans(e){
   return e.block_lines.map(function(r){return r[0]===r[1]?String(r[0]):r[0]+"–"+r[1];}).join(", ");
 }
 
+function pinOf(e,m){return anchorByWords(e,m[1].trim())||guessAnchor(m[2]);}
+
+function suffixOf(a){
+  if(!a||!a.file) return "";
+  if(a.entry) return crossAnchor(a.file,a.entry,a.anchor)?"":" ("+a.file+":e"+a.entry+")";
+  return fileOf(a.file)&&(!a.block||crossEntry(a.file,a.block))?"":a.block?" ("+a.block+")":"";
+}
+
 function lineHtml(e,l){
   var out="", last=0, m;
   ANCH.lastIndex=0;
   while((m=ANCH.exec(l))){
     out+=esc(l.slice(last,m.index));
-    var w=m[1].trim(), a=anchorByWords(e,w)||guessAnchor(m[2]);
+    var a=pinOf(e,m);
     if(a&&a.file&&a.entry){
       if(crossAnchor(a.file,a.entry,a.anchor))
         out+='<span class="anch" data-file="'+esc(a.file)+'" data-entry="'+a.entry+'" data-words="'+esc(a.anchor)+'">'+esc(m[1])+'</span>';
       else
-        out+='<span class="anch off">'+esc(m[1])+' ('+esc(a.file)+':e'+a.entry+')</span>';
+        out+='<span class="anch off">'+esc(m[1]+suffixOf(a))+'</span>';
       last=m.index+m[0].length;
       continue;
     }
@@ -278,7 +286,7 @@ function lineHtml(e,l){
         out+='<span class="anch" data-file="'+esc(a.file)+'"'
           +(a.block?' data-block="'+esc(a.block)+'"':'')+'>'+esc(m[1])+'</span>';
       else
-        out+='<span class="anch off">'+esc(m[1])+(a.block?' ('+esc(a.block)+')':'')+'</span>';
+        out+='<span class="anch off">'+esc(m[1]+suffixOf(a))+'</span>';
       last=m.index+m[0].length;
       continue;
     }
@@ -451,7 +459,7 @@ function caretAt(ev,el){
   return r.toString().length;
 }
 
-function rawOffset(text,shown){
+function rawOffset(text,shown,e){
   var seen=0, last=0, m;
   ANCH.lastIndex=0;
   while((m=ANCH.exec(text))){
@@ -460,6 +468,9 @@ function rawOffset(text,shown){
     seen+=plain;
     if(seen+m[1].length>=shown) return m.index+1+(shown-seen);
     seen+=m[1].length;
+    var suf=suffixOf(pinOf(e,m)).length;
+    if(seen+suf>=shown) return m.index+m[0].length;
+    seen+=suf;
     last=m.index+m[0].length;
   }
   return Math.min(text.length,last+(shown-seen));
@@ -477,7 +488,7 @@ function codeOffset(text,shown){
 
 function startEdit(kind,id,ev,el){
   var text=shownText(kind,id), at=caretAt(ev,el);
-  caretWanted=kind==="code"?codeOffset(text,at):rawOffset(text,at);
+  caretWanted=kind==="code"?codeOffset(text,at):rawOffset(text,at,kind==="retext"?byId[id]:{id:null,anchors:[]});
   editing={file:cur.file,kind:kind,id:id};
   render();
 }
