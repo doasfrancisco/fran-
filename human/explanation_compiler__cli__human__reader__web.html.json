@@ -7,18 +7,18 @@
       "block_lines": [
         [
           1,
-          476
+          656
         ]
       ],
-      "text": "\u25cf  the page loads the project                           ([script](script))\n\u2502     The page asks for one record, human.json, that names the files\n\u2502     of the project. For every file it then asks for the record of\n\u2502     its abstractions, explanation_<name>.json in the map folder. A\n\u2502     file with no record gets an empty one, so the page still shows\n\u2502     it. The file itself comes only when you open the file. The\n\u2502     human.json is always in the list, first, under the name\n\u2502     human/human.json. It also asks for project.json, the record\n\u2502     about the project as a whole; when it holds abstractions it\n\u2502     joins the list too, under the name human/project.json.\n\u2502\n\u25cf  the page draws the file tree                             ([main](main))\n\u2502     On the left: the project name and its files. A click on a\n\u2502     file opens that file.\n\u2502\n\u25cf  the page opens one file                                  ([open](open))\n\u2502     It keeps the lines of the file and every abstraction, and it\n\u2502     remembers which piece of the file each abstraction is about.\n\u2502     It also remembers which abstractions you left open, so a file\n\u2502     you come back to opens as you left it. A writing box left open\n\u2502     closes when you go to another file.\n\u2502\n\u25cf  the page puts the abstractions in order               ([sorted](sorted))\n\u2502     A pin points from one abstraction at another. The abstraction\n\u2502     nobody points at is the most abstract, and it goes last. An\n\u2502     abstraction that a pin points at goes above the one that holds\n\u2502     the pin, and so on upward. Among equals, the one about earlier\n\u2502     lines goes first.\n\u2502\n\u25cf  the page draws the list                              ([render](render))\n\u2502     Every abstraction is one header line: a small arrow, the name\n\u2502     of its piece, its lines, and a write link on the right. All\n\u2502     start folded the first time. Under the header the words are\n\u2502     drawn exactly as written. A pin whose target has an abstraction\n\u2502     is lit; a pin with none is muted. The bar on top says how many\n\u2502     are open. The project map carries a link for a new abstraction\n\u2502     on top; a file with no map offers to write a telling for it, or\n\u2502     to write the code itself. Only human.json takes no writing.\n\u2502     An entry whose writing waits for claude is marked compiling,\n\u2502     with a count when more than one waits.\n\u2502\n\u25cf  you write                                          ([the box](startEdit))\n\u2502     A click on write puts a box in the place of the words. It holds\n\u2502     the text as it is in the map \u2014 the pins in their brackets, the\n\u2502     targets visible \u2014 or the code of the file, or nothing for a new\n\u2502     abstraction. What you type stays in the browser until you send\n\u2502     it, so a box you come back to holds what you left; cancel\n\u2502     [closes it and forgets the draft](stopEdit).\n\u2502\n\u25cf  you press compile and the server answers            ([compile](compile))\n\u2502     The box goes to the server, which runs the command you would\n\u2502     have typed. A refusal comes back in the command's own words,\n\u2502     in the warning colour, and your words stay in the box. A pass\n\u2502     redraws the page with [the map read again](reloadMap) and says\n\u2502     which writing now waits for claude.\n\u2502\n\u25cf  the page watches the queue                         ([pollQueue](pollQueue))\n\u2502     Every three seconds it asks the server what still waits and\n\u2502     marks the entries. When claude finishes, the mark goes.\n\u2502\n\u25cf  you click                                                ([jump](jump))\n\u2502     A click on a header folds or unfolds that abstraction.\n\u2502     A click on a lit pin scrolls to the abstraction it points at,\n\u2502     unfolds it, and lights it for a moment.\n\u2502\n\u25cf  you cross to another file                      ([crossJump](crossJump))\n      A pin can name a file of the project instead of a piece of\n      this one. A click on it opens that file and goes to the piece\n      the pin names. A pin to a file the project does not hold, or\n      to a piece with no abstraction, is muted and shows the piece\n      name. A pin can also name one abstraction of that file and\n      words inside it: a click opens the file, goes to that\n      abstraction, and lights those words for a moment. Such a pin\n      to words the abstraction does not hold is muted and shows the\n      file and the number of the abstraction; when the file holds no\n      such abstraction at all, a line on top says so.\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  the look of the page                                    ([style](style))\n     Two panes on a quiet ground: the tree on the left, the reader on\n     the right. Text in a typewriter face, so drawings keep their\n     columns. A dark and a light version, chosen by your system. On a\n     narrow screen the tree hides and slides in over the reader. The\n     writing box keeps the typewriter face and can be pulled taller.\n\n  small helpers\n     makes text safe to show on a page                        ([esc](esc))\n     shows one line when there is nothing to read              ([msg](msg))\n     opens and hides the tree on a narrow screen        ([drawer](drawer))\n     builds the file tree for one project         ([buildTree](buildTree))\n     asks for the file when you open it             ([loadCode](loadCode))\n     finds a file of the project by name                ([fileOf](fileOf))\n     says if a piece has an abstraction         ([crossEntry](crossEntry))\n     says if an abstraction has those words   ([crossAnchor](crossAnchor))\n     finds which abstraction a pin points at        ([targetOf](targetOf))\n     turns the pins of one line into links          ([lineHtml](lineHtml))\n     says the name the server knows a file by       ([nameOf](nameOf))\n     names where a draft is kept in the browser     ([draftKey](draftKey))\n     marks what still waits for claude          ([queuedMark](queuedMark))\n     draws the writing box                      ([editorHtml](editorHtml))\n     lights the words a pin points at         ([flashAnchor](flashAnchor))",
+      "text": "\u25cf  the page loads the project                           ([script](script))\n\u2502     The page asks for one record, human.json, that names the files\n\u2502     of the project. For every file it then asks for the record of\n\u2502     its abstractions, explanation_<name>.json in the map folder. A\n\u2502     file with no record gets an empty one, so the page still shows\n\u2502     it. The file itself comes only when you open the file. The\n\u2502     human.json is always in the list, first, under the name\n\u2502     human/human.json. It also asks for project.json, the record\n\u2502     about the project as a whole; when it holds abstractions it\n\u2502     joins the list too, under the name human/project.json.\n\u2502\n\u25cf  the page draws the file tree                             ([main](main))\n\u2502     On the left: the project name and its files. A click on a\n\u2502     file opens that file.\n\u2502\n\u25cf  the page opens one file                                  ([open](open))\n\u2502     It keeps the lines of the file and every abstraction, and it\n\u2502     remembers which piece of the file each abstraction is about.\n\u2502     It also remembers which abstractions you left open, so a file\n\u2502     you come back to opens as you left it. A writing box left open\n\u2502     closes when you go to another file.\n\u2502\n\u25cf  the page puts the abstractions in order               ([sorted](sorted))\n\u2502     A pin points from one abstraction at another. The abstraction\n\u2502     nobody points at is the most abstract, and it goes last. An\n\u2502     abstraction that a pin points at goes above the one that holds\n\u2502     the pin, and so on upward. Among equals, the one about earlier\n\u2502     lines goes first.\n\u2502\n\u25cf  the page draws the list                              ([render](render))\n\u2502     Every abstraction is one header line: a small arrow, the name\n\u2502     of its piece and its lines. All start folded the first time.\n\u2502     Under the header the words are drawn exactly as written. A pin\n\u2502     whose target has an abstraction is lit; a pin with none is\n\u2502     muted; a pin the map does not hold yet, one you just typed, is\n\u2502     [read from the target it names](guessAnchor). The bar on top\n\u2502     says how many are open, the word unsaved while a change is only\n\u2502     in the page, and [a compile button](header) as soon as anything\n\u2502     differs from the map. The project map carries an empty place\n\u2502     for a new abstraction on top; a file with no map shows one\n\u2502     place for its telling and the code of the file under it. Only\n\u2502     human.json takes no writing. An entry whose writing waits for\n\u2502     claude is marked compiling, with a count when more than one\n\u2502     waits.\n\u2502\n\u25cf  you write                                          ([the box](startEdit))\n\u2502     A click on the words puts a box in their place, with the caret\n\u2502     where you clicked. It holds the text as it is in the map \u2014 the\n\u2502     pins in their brackets, the targets visible \u2014 or the code of\n\u2502     the file, or nothing for a new abstraction. The box grows as\n\u2502     you type. Escape, or a click away, [closes the box](leaveEdit)\n\u2502     and keeps what you wrote. The bar says unsaved until\n\u2502     [ctrl-S keeps it in the browser](save), so a box you come back\n\u2502     to holds what you left.\n\u2502\n\u25cf  you press compile and the server answers            ([compile](compile))\n\u2502     The button in the bar sends every place you changed, one after\n\u2502     the other, and each runs the command you would have typed. A\n\u2502     refusal comes back in the command's own words, named by the\n\u2502     place it came from, in the warning colour, and your words stay\n\u2502     on the page. A pass forgets the draft, redraws the page with\n\u2502     [the map read again](reloadMap) and says which writing now\n\u2502     waits for claude.\n\u2502\n\u25cf  the page watches the queue                         ([pollQueue](pollQueue))\n\u2502     Every three seconds it asks the server what still waits and\n\u2502     marks the entries. When claude finishes, the mark goes.\n\u2502\n\u25cf  you click                                                ([jump](jump))\n\u2502     A click on a header folds or unfolds that abstraction.\n\u2502     A click on a lit pin scrolls to the abstraction it points at,\n\u2502     unfolds it, and lights it for a moment; it opens no box.\n\u2502\n\u25cf  you cross to another file                      ([crossJump](crossJump))\n      A pin can name a file of the project instead of a piece of\n      this one. A click on it opens that file and goes to the piece\n      the pin names. A pin to a file the project does not hold, or\n      to a piece with no abstraction, is muted and shows the piece\n      name. A pin can also name one abstraction of that file and\n      words inside it: a click opens the file, goes to that\n      abstraction, and lights those words for a moment. Such a pin\n      to words the abstraction does not hold is muted and shows the\n      file and the number of the abstraction; when the file holds no\n      such abstraction at all, a line on top says so.\n\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  the look of the page                                    ([style](style))\n     Two panes on a quiet ground: the tree on the left, the reader on\n     the right. Text in a typewriter face, so drawings keep their\n     columns. A dark and a light version, chosen by your system. On a\n     narrow screen the tree hides and slides in over the reader. The\n     writing box sits in the place of the words, keeps the typewriter\n     face, and grows with what you type.\n\n  small helpers\n     makes text safe to show on a page                        ([esc](esc))\n     shows one line when there is nothing to read              ([msg](msg))\n     opens and hides the tree on a narrow screen        ([drawer](drawer))\n     builds the file tree for one project         ([buildTree](buildTree))\n     asks for the file when you open it             ([loadCode](loadCode))\n     finds a file of the project by name                ([fileOf](fileOf))\n     says if a piece has an abstraction         ([crossEntry](crossEntry))\n     says if an abstraction has those words   ([crossAnchor](crossAnchor))\n     finds which abstraction a pin points at        ([targetOf](targetOf))\n     reads a pin the map does not hold    ([guessAnchor](guessAnchor))\n     turns the pins of one line into links          ([lineHtml](lineHtml))\n     says the name the server knows a file by       ([nameOf](nameOf))\n     names where a draft is kept in the browser           ([key](key))\n     gives the text a box opens with            ([baseText](baseText))\n     gives the text now shown, draft or map   ([shownText](shownText))\n     says if a text differs from the map          ([changed](changed))\n     says if a change is not kept yet             ([unsaved](unsaved))\n     lists every place the file takes writing         ([slots](slots))\n     marks what still waits for claude          ([queuedMark](queuedMark))\n     says which place holds the box           ([isEditing](isEditing))\n     draws the writing box                      ([editorHtml](editorHtml))\n     draws the telling of a whole file    ([mapSlotHtml](mapSlotHtml))\n     numbers the lines of the code      ([codeSlotHtml](codeSlotHtml))\n     makes the box as tall as its text                    ([fit](fit))\n     puts the caret in the new box        ([focusEditor](focusEditor))\n     holds what you typed while the page redraws     ([keep](keep))\n     finds the letter you clicked                 ([caretAt](caretAt))\n     finds that letter in the raw text        ([rawOffset](rawOffset))\n     finds it past the line numbers         ([codeOffset](codeOffset))\n     lights the words a pin points at         ([flashAnchor](flashAnchor))",
       "anchors": [
         {
           "words": "script",
           "block": "script",
           "lines": [
             [
-              93,
-              474
+              91,
+              654
             ]
           ]
         },
@@ -27,8 +27,8 @@
           "block": "main",
           "lines": [
             [
-              80,
-              91
+              78,
+              89
             ]
           ]
         },
@@ -37,8 +37,8 @@
           "block": "open",
           "lines": [
             [
-              158,
-              174
+              156,
+              172
             ]
           ]
         },
@@ -47,8 +47,8 @@
           "block": "sorted",
           "lines": [
             [
-              216,
-              237
+              214,
+              235
             ]
           ]
         },
@@ -57,8 +57,28 @@
           "block": "render",
           "lines": [
             [
-              310,
-              343
+              373,
+              417
+            ]
+          ]
+        },
+        {
+          "words": "read from the target it names",
+          "block": "guessAnchor",
+          "lines": [
+            [
+              243,
+              253
+            ]
+          ]
+        },
+        {
+          "words": "a compile button",
+          "block": "header",
+          "lines": [
+            [
+              361,
+              371
             ]
           ]
         },
@@ -67,18 +87,28 @@
           "block": "startEdit",
           "lines": [
             [
-              345,
-              353
+              474,
+              479
             ]
           ]
         },
         {
-          "words": "closes it and forgets the draft",
-          "block": "stopEdit",
+          "words": "closes the box",
+          "block": "leaveEdit",
           "lines": [
             [
-              355,
-              359
+              481,
+              487
+            ]
+          ]
+        },
+        {
+          "words": "ctrl-S keeps it in the browser",
+          "block": "save",
+          "lines": [
+            [
+              489,
+              500
             ]
           ]
         },
@@ -87,8 +117,8 @@
           "block": "compile",
           "lines": [
             [
-              370,
-              390
+              511,
+              546
             ]
           ]
         },
@@ -97,8 +127,8 @@
           "block": "reloadMap",
           "lines": [
             [
-              361,
-              368
+              502,
+              509
             ]
           ]
         },
@@ -107,8 +137,8 @@
           "block": "pollQueue",
           "lines": [
             [
-              392,
-              400
+              548,
+              556
             ]
           ]
         },
@@ -117,8 +147,8 @@
           "block": "jump",
           "lines": [
             [
-              403,
-              411
+              559,
+              567
             ]
           ]
         },
@@ -127,8 +157,8 @@
           "block": "crossJump",
           "lines": [
             [
-              424,
-              447
+              580,
+              603
             ]
           ]
         },
@@ -138,7 +168,7 @@
           "lines": [
             [
               7,
-              77
+              75
             ]
           ]
         },
@@ -147,8 +177,8 @@
           "block": "esc",
           "lines": [
             [
-              96,
-              96
+              94,
+              94
             ]
           ]
         },
@@ -157,8 +187,8 @@
           "block": "msg",
           "lines": [
             [
-              102,
-              102
+              100,
+              100
             ]
           ]
         },
@@ -167,8 +197,8 @@
           "block": "drawer",
           "lines": [
             [
-              105,
-              105
+              103,
+              103
             ]
           ]
         },
@@ -177,8 +207,8 @@
           "block": "buildTree",
           "lines": [
             [
-              139,
-              156
+              137,
+              154
             ]
           ]
         },
@@ -187,8 +217,8 @@
           "block": "loadCode",
           "lines": [
             [
-              176,
-              187
+              174,
+              185
             ]
           ]
         },
@@ -197,8 +227,8 @@
           "block": "fileOf",
           "lines": [
             [
-              189,
-              193
+              187,
+              191
             ]
           ]
         },
@@ -207,8 +237,8 @@
           "block": "crossEntry",
           "lines": [
             [
-              195,
-              199
+              193,
+              197
             ]
           ]
         },
@@ -217,8 +247,8 @@
           "block": "crossAnchor",
           "lines": [
             [
-              201,
-              207
+              199,
+              205
             ]
           ]
         },
@@ -227,8 +257,18 @@
           "block": "targetOf",
           "lines": [
             [
-              209,
-              214
+              207,
+              212
+            ]
+          ]
+        },
+        {
+          "words": "guessAnchor",
+          "block": "guessAnchor",
+          "lines": [
+            [
+              243,
+              253
             ]
           ]
         },
@@ -237,8 +277,8 @@
           "block": "lineHtml",
           "lines": [
             [
-              251,
-              283
+              261,
+              293
             ]
           ]
         },
@@ -247,18 +287,68 @@
           "block": "nameOf",
           "lines": [
             [
-              289,
-              293
+              295,
+              299
             ]
           ]
         },
         {
-          "words": "draftKey",
-          "block": "draftKey",
+          "words": "key",
+          "block": "key",
           "lines": [
             [
-              295,
-              295
+              301,
+              301
+            ]
+          ]
+        },
+        {
+          "words": "baseText",
+          "block": "baseText",
+          "lines": [
+            [
+              303,
+              303
+            ]
+          ]
+        },
+        {
+          "words": "shownText",
+          "block": "shownText",
+          "lines": [
+            [
+              305,
+              310
+            ]
+          ]
+        },
+        {
+          "words": "changed",
+          "block": "changed",
+          "lines": [
+            [
+              312,
+              312
+            ]
+          ]
+        },
+        {
+          "words": "unsaved",
+          "block": "unsaved",
+          "lines": [
+            [
+              314,
+              319
+            ]
+          ]
+        },
+        {
+          "words": "slots",
+          "block": "slots",
+          "lines": [
+            [
+              321,
+              332
             ]
           ]
         },
@@ -267,8 +357,18 @@
           "block": "queuedMark",
           "lines": [
             [
-              297,
-              300
+              334,
+              337
+            ]
+          ]
+        },
+        {
+          "words": "isEditing",
+          "block": "isEditing",
+          "lines": [
+            [
+              339,
+              339
             ]
           ]
         },
@@ -277,8 +377,88 @@
           "block": "editorHtml",
           "lines": [
             [
-              302,
-              308
+              341,
+              343
+            ]
+          ]
+        },
+        {
+          "words": "mapSlotHtml",
+          "block": "mapSlotHtml",
+          "lines": [
+            [
+              345,
+              350
+            ]
+          ]
+        },
+        {
+          "words": "codeSlotHtml",
+          "block": "codeSlotHtml",
+          "lines": [
+            [
+              352,
+              359
+            ]
+          ]
+        },
+        {
+          "words": "fit",
+          "block": "fit",
+          "lines": [
+            [
+              419,
+              419
+            ]
+          ]
+        },
+        {
+          "words": "focusEditor",
+          "block": "focusEditor",
+          "lines": [
+            [
+              421,
+              428
+            ]
+          ]
+        },
+        {
+          "words": "keep",
+          "block": "keep",
+          "lines": [
+            [
+              430,
+              433
+            ]
+          ]
+        },
+        {
+          "words": "caretAt",
+          "block": "caretAt",
+          "lines": [
+            [
+              435,
+              448
+            ]
+          ]
+        },
+        {
+          "words": "rawOffset",
+          "block": "rawOffset",
+          "lines": [
+            [
+              450,
+              462
+            ]
+          ]
+        },
+        {
+          "words": "codeOffset",
+          "block": "codeOffset",
+          "lines": [
+            [
+              464,
+              472
             ]
           ]
         },
@@ -287,8 +467,8 @@
           "block": "flashAnchor",
           "lines": [
             [
-              413,
-              422
+              569,
+              578
             ]
           ]
         }
@@ -298,38 +478,59 @@
   "not_covered": {
     "code_lines": [],
     "blank_lines": [
-      95,
+      93,
+      99,
       101,
-      103,
-      108,
-      138,
-      157,
-      175,
-      188,
-      194,
-      200,
-      208,
-      215,
-      238,
-      244,
-      246,
-      250,
-      284,
-      288,
+      106,
+      136,
+      155,
+      173,
+      186,
+      192,
+      198,
+      206,
+      213,
+      236,
+      242,
+      254,
+      256,
+      260,
       294,
-      296,
-      301,
-      309,
+      300,
+      302,
+      304,
+      311,
+      313,
+      320,
+      333,
+      338,
+      340,
       344,
-      354,
+      351,
       360,
-      369,
-      391,
-      402,
-      412,
-      423,
-      448,
-      452
+      372,
+      418,
+      420,
+      429,
+      434,
+      449,
+      463,
+      473,
+      480,
+      488,
+      501,
+      510,
+      547,
+      558,
+      568,
+      579,
+      604,
+      611,
+      615,
+      625,
+      629,
+      633,
+      635
     ]
   }
 }

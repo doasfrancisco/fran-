@@ -54,17 +54,15 @@
   .bhead{display:flex;align-items:center;gap:6px;}
   .bhead .label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;}
   .queued{color:var(--spec);}
-  .write{color:var(--faint);cursor:pointer;padding:0 4px;border-radius:4px;}
-  .write:hover{color:var(--spec);}
-  .pill .write{color:var(--spec);border:1px solid var(--spec-line);padding:2px 8px;margin-right:6px;}
-  .editor{padding:6px 14px 10px;display:flex;flex-direction:column;gap:6px;}
-  .editor textarea{width:100%;min-height:240px;font-family:var(--mono);font-size:13px;line-height:1.62;white-space:pre;overflow-wrap:normal;overflow-x:auto;background:var(--surface-2);color:var(--ink);border:1px solid var(--hair);border-radius:8px;padding:8px 10px;resize:vertical;tab-size:4;}
-  .editor .bar{display:flex;gap:8px;align-items:center;font-family:var(--mono);font-size:11px;color:var(--muted);}
-  .editor button{font-family:var(--mono);font-size:11px;padding:3px 10px;border-radius:999px;border:1px solid var(--hair);background:var(--surface);color:var(--ink);cursor:pointer;}
-  .editor button.go{background:var(--spec);border-color:var(--spec);color:#fff;}
-  .editor button:disabled{opacity:.5;cursor:default;}
-  .editor .out{white-space:pre-wrap;font-family:var(--mono);font-size:11px;color:var(--muted);}
-  .editor .out.bad{color:var(--call);}
+  .chunk.plain,.chunk.blank{cursor:text;}
+  .chunk.blank{color:var(--faint);}
+  .chunk textarea{display:block;width:100%;font:inherit;line-height:inherit;white-space:pre;overflow-wrap:normal;overflow-x:auto;overflow-y:hidden;background:transparent;color:var(--ink);border:0;outline:0;padding:0;margin:0;resize:none;tab-size:4;}
+  .pill.note{white-space:pre-wrap;}
+  .pill.bad{color:var(--call);}
+  #state{color:var(--faint);}
+  #go{color:var(--spec);border:1px solid var(--spec-line);border-radius:999px;padding:1px 9px;cursor:pointer;}
+  #go[hidden]{display:none;}
+  #go.busy{opacity:.5;cursor:default;}
   @media (max-width:720px){
     main{padding:8px;gap:8px;}
     #menu{display:inline-block;}
@@ -84,7 +82,7 @@
   </div>
   <div id="wrap">
     <div id="readwrap">
-      <section class="pane" id="reader"><div class="phead"><span id="menu">☰</span><span id="head"></span></div><div class="rows" id="rows"></div></section>
+      <section class="pane" id="reader"><div class="phead"><span id="menu">☰</span><span id="head"></span><span id="state"></span><span id="go" hidden>compile</span></div><div class="rows" id="rows"></div></section>
       <div id="msg" hidden></div>
     </div>
   </div>
@@ -96,7 +94,7 @@ import { FileTree } from "./trees.js";
 function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 var ANCH=/\[([^\[\]]+)\]\(([^()]+)\)/g;
 var projs=[], cur=null, byId={}, blockId={}, order=[], lines=[], ft=null, openSet={}, openMem={}, notice="";
-var editing=null, pendingBy={}, sending=false;
+var editing=null, typed={}, pendingBy={}, sending=false, bad=false, caretWanted=0;
 var rows=document.getElementById("rows");
 
 function msg(t){var el=document.getElementById("msg");el.hidden=!t;el.textContent=t||"";}
@@ -242,6 +240,18 @@ function anchorByWords(e,w){
   return found;
 }
 
+function guessAnchor(t){
+  t=t.trim();
+  var em=/^e(\d+):(.+)$/.exec(t);
+  if(em) return {explanation:+em[1],anchor:em[2]};
+  if(t in blockId) return {block:t};
+  var i=t.indexOf(":"), fn=i<0?t:t.slice(0,i), rest=i<0?null:t.slice(i+1);
+  if(!fileOf(fn)) return null;
+  if(rest===null) return {file:fn};
+  var fe=/^e(\d+):(.+)$/.exec(rest);
+  return fe?{file:fn,entry:+fe[1],anchor:fe[2]}:{file:fn,block:rest};
+}
+
 function startOf(e){return Math.min.apply(null,e.block_lines.map(function(r){return r[0];}));}
 
 function fmtSpans(e){
@@ -253,7 +263,7 @@ function lineHtml(e,l){
   ANCH.lastIndex=0;
   while((m=ANCH.exec(l))){
     out+=esc(l.slice(last,m.index));
-    var w=m[1].trim(), a=anchorByWords(e,w);
+    var w=m[1].trim(), a=anchorByWords(e,w)||guessAnchor(m[2]);
     if(a&&a.file&&a.entry){
       if(crossAnchor(a.file,a.entry,a.anchor))
         out+='<span class="anch" data-file="'+esc(a.file)+'" data-entry="'+a.entry+'" data-words="'+esc(a.anchor)+'">'+esc(m[1])+'</span>';
@@ -282,80 +292,211 @@ function lineHtml(e,l){
   return out;
 }
 
-function textHtml(e){
-  return '<div class="chunk">'+e.text.split("\n").map(function(l){return lineHtml(e,l);}).join("\n")+'</div>';
-}
-
 function nameOf(file){
   if(file==="human/project.json") return "project";
   if(file==="human/human.json") return null;
   return file;
 }
 
-function draftKey(){return "human-draft:"+cur.name+"/"+editing.file+"/"+(editing.id===null?editing.kind:editing.id);}
+function key(file,kind,id){return "human-draft:"+cur.name+"/"+file+"/"+(id===null?kind:id);}
+
+function baseText(kind,id){return kind==="retext"?byId[id].text:kind==="code"?(cur.code||""):"";}
+
+function shownText(kind,id){
+  var k=key(cur.file,kind,id);
+  if(k in typed) return typed[k];
+  var s=localStorage.getItem(k);
+  return s!==null?s:baseText(kind,id);
+}
+
+function changed(kind,id){return shownText(kind,id)!==baseText(kind,id);}
+
+function unsaved(kind,id){
+  var k=key(cur.file,kind,id);
+  if(!(k in typed)) return false;
+  var s=localStorage.getItem(k);
+  return typed[k]!==(s!==null?s:baseText(kind,id));
+}
+
+function slots(){
+  var name=nameOf(cur.file);
+  if(!name) return [];
+  if(!cur.d.explanations.length){
+    var s=[{kind:"map",id:null}];
+    if(name!=="project"&&cur.code!==null) s.push({kind:"code",id:null});
+    return s;
+  }
+  var out=name==="project"?[{kind:"map",id:null}]:[];
+  order.forEach(function(e){out.push({kind:"retext",id:e.id});});
+  return out;
+}
 
 function queuedMark(name,id){
   var q=(pendingBy[name]||[]).filter(function(x){return id===undefined||x.entry===id;});
   return q.length?' <span class="queued">· compiling'+(q.length>1?" ×"+q.length:"")+'</span>':"";
 }
 
+function isEditing(kind,id){return !!editing&&editing.kind===kind&&editing.id===id;}
+
 function editorHtml(text){
-  return '<div class="editor"><textarea spellcheck="false">'+esc(text)+'</textarea>'
-    +'<div class="bar"><button class="go" data-compile="1"'+(sending?" disabled":"")+'>compile</button>'
-    +'<button data-cancel="1">cancel</button><span>'+esc(editing.kind==="code"?"the code of "+editing.file:
-      editing.kind==="map"?"your words, plain — the pins come later":"your words, with the pins")+'</span></div>'
-    +'<div class="out'+(editing.bad?" bad":"")+'">'+esc(editing.out||"")+'</div></div>';
+  return '<div class="chunk edit"><textarea spellcheck="false">'+esc(text)+'</textarea></div>';
+}
+
+function mapSlotHtml(name,blank){
+  if(isEditing("map",null)) return editorHtml(shownText("map",null));
+  var t=shownText("map",null);
+  if(!t) return '<div class="chunk blank" data-edit="map">'+blank+'</div>';
+  return '<div class="chunk plain" data-edit="map">'+t.split("\n").map(function(l){return lineHtml({id:null,anchors:[]},l);}).join("\n")+'</div>';
+}
+
+function codeSlotHtml(){
+  var t=shownText("code",null);
+  if(isEditing("code",null)) return editorHtml(t);
+  var ls=t?t.replace(/\n$/,"").split("\n"):[];
+  if(!ls.length) return "";
+  var pad=String(ls.length).length;
+  return '<div class="chunk plain" data-edit="code">'+esc(ls.map(function(l,i){return String(i+1).padStart(pad)+"  "+l;}).join("\n"))+'</div>';
+}
+
+function header(){
+  var any=false, dirty=false;
+  slots().forEach(function(s){
+    if(changed(s.kind,s.id)) any=true;
+    if(unsaved(s.kind,s.id)) dirty=true;
+  });
+  document.getElementById("state").textContent=dirty?"unsaved":"";
+  var go=document.getElementById("go");
+  go.hidden=!any&&!sending;
+  go.classList.toggle("busy",sending);
 }
 
 function render(){
+  var ta=rows.querySelector(".chunk textarea");
+  if(editing&&ta) keep(ta.value);
   var name=nameOf(cur.file);
+  var html=notice?'<div class="pill note'+(bad?" bad":"")+'">'+esc(notice)+'</div>':"";
   if(!cur.d.explanations.length){
-    var pad=String(lines.length).length;
-    var code=lines.map(function(l,i){return String(i+1).padStart(pad)+"  "+l;}).join("\n");
     var word=cur.code===null?"loading the file":"no map for this file yet";
-    var tools=(name&&cur.code!==null&&!editing)?
-      '<span class="write" data-write="map">write a telling</span>'
-      +(name==="project"?"":'<span class="write" data-write="code">write the code</span>'):"";
-    rows.innerHTML='<div class="pill">'+tools+esc(notice||word)+queuedMark(name)+'</div>'
-      +(editing?editorHtml(editing.text):(lines.length?'<div class="chunk">'+esc(code)+'</div>':""));
+    html+='<div class="pill">'+esc(word)+queuedMark(name)+'</div>';
+    if(name&&cur.code!==null){
+      html+=mapSlotHtml(name,"write an abstraction");
+      if(name!=="project") html+=codeSlotHtml();
+    }else if(lines.length){
+      var pad=String(lines.length).length;
+      html+='<div class="chunk">'+esc(lines.map(function(l,i){return String(i+1).padStart(pad)+"  "+l;}).join("\n"))+'</div>';
+    }
+    rows.innerHTML=html;
     document.getElementById("head").textContent=cur.name+"/"+cur.file+"  ·  no map";
+    header(); focusEditor();
     return;
   }
-  var html=notice?'<div class="pill">'+esc(notice)+'</div>':"", opened=0;
-  if(name==="project"&&!editing) html+='<div class="pill"><span class="write" data-write="map">new abstraction</span>'+queuedMark(name,null)+'</div>';
-  if(editing&&editing.id===null) html+=editorHtml(editing.text);
+  var opened=0;
+  if(name==="project"){
+    var t=shownText("map",null);
+    if(t||isEditing("map",null)) html+='<div class="bhead"><span class="label">new abstraction'+queuedMark(name,null)+'</span></div>';
+    html+=mapSlotHtml(name,"new abstraction"+queuedMark(name,null));
+  }
   order.forEach(function(e){
-    var ed=editing&&editing.id===e.id;
-    var on=!!openSet[e.id]||ed;
+    var on=!!openSet[e.id]||isEditing("retext",e.id);
     if(on) opened++;
     var spans=fmtSpans(e);
     html+='<div class="entry'+(on?'':' folded')+'" data-entry="'+e.id+'">'
       +'<div class="bhead closable" data-fold="'+e.id+'"><span class="caret">'+(on?'▾':'▸')+'</span><span class="label">'
-      +esc(e.block)+(spans?' · '+spans:"")+queuedMark(name,e.id)+'</span>'
-      +(name&&!editing?'<span class="write" data-write="retext" data-id="'+e.id+'">write</span>':"")+'</div>'
-      +'<div class="body">'+(ed?editorHtml(editing.text):textHtml(e))+'</div></div>';
+      +esc(e.block)+(spans?' · '+spans:"")+queuedMark(name,e.id)+'</span></div>'
+      +'<div class="body">'+(isEditing("retext",e.id)?editorHtml(shownText("retext",e.id))
+        :'<div class="chunk'+(name?' plain" data-edit="retext" data-id="'+e.id:'')+'">'
+          +shownText("retext",e.id).split("\n").map(function(l){return lineHtml(e,l);}).join("\n")+'</div>')
+      +'</div></div>';
   });
   var bare=(cur.d.not_covered&&cur.d.not_covered.code_lines||[]).length;
   if(bare) html+='<div class="pill">▹ '+bare+' bare lines</div>';
   rows.innerHTML=html;
   document.getElementById("head").textContent=
     cur.name+"/"+cur.file+"  ·  "+opened+"/"+cur.d.explanations.length+" open";
+  header(); focusEditor();
 }
 
-function startEdit(kind,id){
-  var base=kind==="retext"?byId[id].text:kind==="code"?(cur.code||""):"";
-  editing={file:cur.file,kind:kind,id:kind==="retext"?id:null,text:base,out:"",bad:false};
-  var saved=localStorage.getItem(draftKey());
-  if(saved!==null) editing.text=saved;
+function fit(ta){ta.style.height="auto";ta.style.height=ta.scrollHeight+"px";}
+
+function focusEditor(){
+  var ta=rows.querySelector(".chunk textarea");
+  if(!ta) return;
+  fit(ta);
+  ta.focus();
+  var pos=Math.min(caretWanted,ta.value.length);
+  ta.setSelectionRange(pos,pos);
+}
+
+function keep(text){
+  var k=key(editing.file,editing.kind,editing.id);
+  if(text!==shownText(editing.kind,editing.id)||k in typed) typed[k]=text;
+}
+
+function caretAt(ev,el){
+  var node=null, off=0;
+  if(document.caretPositionFromPoint){
+    var p=document.caretPositionFromPoint(ev.clientX,ev.clientY);
+    if(p){node=p.offsetNode;off=p.offset;}
+  }else if(document.caretRangeFromPoint){
+    var c=document.caretRangeFromPoint(ev.clientX,ev.clientY);
+    if(c){node=c.startContainer;off=c.startOffset;}
+  }
+  if(!node||!el.contains(node)) return 0;
+  var r=document.createRange();
+  r.setStart(el,0); r.setEnd(node,off);
+  return r.toString().length;
+}
+
+function rawOffset(text,shown){
+  var seen=0, last=0, m;
+  ANCH.lastIndex=0;
+  while((m=ANCH.exec(text))){
+    var plain=m.index-last;
+    if(seen+plain>=shown) return last+(shown-seen);
+    seen+=plain;
+    if(seen+m[1].length>=shown) return m.index+1+(shown-seen);
+    seen+=m[1].length;
+    last=m.index+m[0].length;
+  }
+  return Math.min(text.length,last+(shown-seen));
+}
+
+function codeOffset(text,shown){
+  var ls=text.replace(/\n$/,"").split("\n"), pad=String(ls.length).length+2, at=0;
+  for(var i=0;i<ls.length;i++){
+    var w=pad+ls[i].length+1;
+    if(shown<w) return at+Math.max(0,shown-pad);
+    shown-=w; at+=ls[i].length+1;
+  }
+  return text.length;
+}
+
+function startEdit(kind,id,ev,el){
+  var text=shownText(kind,id), at=caretAt(ev,el);
+  caretWanted=kind==="code"?codeOffset(text,at):rawOffset(text,at);
+  editing={file:cur.file,kind:kind,id:id};
   render();
-  var ta=rows.querySelector(".editor textarea");
-  if(ta) ta.focus();
 }
 
-function stopEdit(){
-  if(editing) localStorage.removeItem(draftKey());
+function leaveEdit(text){
+  if(!editing) return;
+  keep(text);
   editing=null;
+  caretWanted=0;
   render();
+}
+
+function save(){
+  if(!cur) return;
+  var ta=rows.querySelector(".chunk textarea");
+  if(editing&&ta) keep(ta.value);
+  slots().forEach(function(s){
+    var k=key(cur.file,s.kind,s.id);
+    if(!(k in typed)) return;
+    if(typed[k]===baseText(s.kind,s.id)) localStorage.removeItem(k); else localStorage.setItem(k,typed[k]);
+    delete typed[k];
+  });
+  header();
 }
 
 function reloadMap(f){
@@ -368,25 +509,40 @@ function reloadMap(f){
 }
 
 function compile(){
-  var ta=rows.querySelector(".editor textarea");
-  if(!ta||sending) return;
-  editing.text=ta.value;
-  sending=true; editing.out="compiling…"; editing.bad=false;
+  if(!cur||sending) return;
+  var ta=rows.querySelector(".chunk textarea");
+  if(editing&&ta) keep(ta.value);
+  var todo=slots().filter(function(s){return changed(s.kind,s.id);});
+  if(!todo.length) return;
+  var f=fileOf(cur.file), name=nameOf(cur.file), file=cur.file;
+  var texts=todo.map(function(s){return shownText(s.kind,s.id);});
+  sending=true; bad=false; notice="compiling…"; editing=null;
   render();
-  var f=fileOf(editing.file), body={name:nameOf(editing.file),kind:editing.kind,id:editing.id,text:ta.value};
-  fetch("compile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
-    .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
-    .then(function(x){
-      sending=false;
-      if(!x.ok){editing.out=x.j.error||"refused";editing.bad=true;render();return;}
-      localStorage.removeItem(draftKey());
-      var say=x.j.output+(x.j.seq?"  ·  event "+x.j.seq+" waits for claude":"");
-      editing=null;
-      var done=function(){notice=say;render();pollQueue();};
-      if(body.kind==="code"){f.code=body.text;open(cur.proj,f);done();return;}
-      reloadMap(f).then(done);
-    })
-    .catch(function(){sending=false;editing.out="the server did not answer — is human serve running?";editing.bad=true;render();});
+  var says=[], failed=false, codeOk=false;
+  var done=function(){
+    sending=false;
+    var show=function(){notice=says.join("\n");bad=failed;render();pollQueue();};
+    if(!cur||cur.file!==file){show();return;}
+    if(codeOk) open(cur.proj,f);
+    reloadMap(f).then(show);
+  };
+  var step=function(i){
+    if(i>=todo.length){done();return;}
+    var s=todo[i], body={name:name,kind:s.kind,id:s.id,text:texts[i]};
+    var label=s.kind==="code"?"the code":s.kind==="map"?"the abstraction":"entry "+s.id;
+    fetch("compile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+      .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});})
+      .then(function(x){
+        if(!x.ok){says.push(label+": "+(x.j.error||"refused"));failed=true;step(i+1);return;}
+        var k=key(file,s.kind,s.id);
+        localStorage.removeItem(k); delete typed[k];
+        if(s.kind==="code"){f.code=body.text;codeOk=true;}
+        says.push(x.j.output+(x.j.seq?"  ·  event "+x.j.seq+" waits for claude":""));
+        step(i+1);
+      })
+      .catch(function(){says.push(label+": the server did not answer — is human serve running?");failed=true;step(i+1);});
+  };
+  step(0);
 }
 
 function pollQueue(){
@@ -447,15 +603,38 @@ function crossJump(fname,bname,eid,words){
 }
 
 rows.addEventListener("input",function(ev){
-  if(editing&&ev.target.matches(".editor textarea")) localStorage.setItem(draftKey(),ev.target.value);
+  if(!editing||!ev.target.matches(".chunk textarea")) return;
+  keep(ev.target.value);
+  fit(ev.target);
+  header();
 });
 
+rows.addEventListener("focusout",function(ev){
+  if(editing&&ev.target.isConnected&&ev.target.matches(".chunk textarea")) leaveEdit(ev.target.value);
+});
+
+rows.addEventListener("mousedown",function(ev){
+  if(ev.button!==0||ev.target.closest("textarea")||ev.target.closest(".anch[data-file],.anch[data-child]")) return;
+  var ch=ev.target.closest(".chunk[data-edit]");
+  if(!ch) return;
+  ev.preventDefault();
+  var ta=rows.querySelector(".chunk textarea");
+  if(editing&&ta) keep(ta.value);
+  startEdit(ch.getAttribute("data-edit"),ch.hasAttribute("data-id")?+ch.getAttribute("data-id"):null,ev,ch);
+});
+
+rows.addEventListener("keydown",function(ev){
+  if(ev.key==="Escape"&&ev.target.matches(".chunk textarea")) ev.target.blur();
+});
+
+document.addEventListener("keydown",function(ev){
+  if((ev.ctrlKey||ev.metaKey)&&!ev.altKey&&ev.key.toLowerCase()==="s"){ev.preventDefault();save();}
+});
+
+document.getElementById("go").addEventListener("click",function(){compile();});
+
 rows.addEventListener("click",function(ev){
-  var wr=ev.target.closest(".write[data-write]");
-  if(wr){startEdit(wr.getAttribute("data-write"),wr.hasAttribute("data-id")?+wr.getAttribute("data-id"):null);return;}
-  if(ev.target.closest("[data-compile]")){compile();return;}
-  if(ev.target.closest("[data-cancel]")){stopEdit();return;}
-  if(ev.target.closest(".editor")) return;
+  if(ev.target.closest("textarea")) return;
   var xf=ev.target.closest(".anch[data-file]");
   if(xf){
     var ce=xf.getAttribute("data-entry");
@@ -464,6 +643,7 @@ rows.addEventListener("click",function(ev){
   }
   var an=ev.target.closest(".anch[data-child]");
   if(an){jump(+an.getAttribute("data-child"));return;}
+  if(ev.target.closest(".chunk[data-edit]")) return;
   var fd=ev.target.closest(".bhead[data-fold]");
   if(fd){
     var id=+fd.getAttribute("data-fold");
