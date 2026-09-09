@@ -135,7 +135,7 @@ class FreshHandler(SimpleHTTPRequestHandler):
             if path == "/human/compile":
                 body = self.read_body()
                 status, out = cmd_watch.compile_writing(root, body.get("name"), body.get("kind"),
-                                                        body.get("id"), body.get("text"))
+                                                        body.get("id"), body.get("text"), body.get("words"))
             elif m:
                 body = self.read_body()
                 status, out = cmd_train.pick(root, m.group(1),

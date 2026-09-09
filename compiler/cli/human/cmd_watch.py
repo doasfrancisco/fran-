@@ -10,7 +10,8 @@ from pathlib import Path
 from . import cmd_project, decompiler
 
 FOLDER = "server"
-KINDS = ("retext", "map", "code")
+KINDS = ("retext", "map", "code", "decompile", "expand", "create")
+WRITTEN = ("retext", "map", "code")
 LOCK = threading.Lock()
 ENTRY_RE = re.compile(r"^entry (\d+)", re.M)
 
@@ -97,15 +98,17 @@ def pins_reaching(root, name):
     return out
 
 
-def compile_writing(root, name, kind, eid, text):
+def compile_writing(root, name, kind, eid, text, words=None):
     if kind not in KINDS:
         return 400, f"unknown kind {kind!r}; one of {', '.join(KINDS)}"
-    if not text or not text.strip():
+    if kind in WRITTEN and (not text or not text.strip()):
         return 400, "the text is empty"
     is_project = name == cmd_project.WORD
     file_path = None if is_project else (root / name).resolve()
     if not is_project and (root not in file_path.parents or not file_path.is_file()):
         return 400, f"{name} is not a file of the project"
+    if not is_project and (root / "human") in file_path.parents:
+        return 400, f"{name} belongs to the human folder; the maps take no writing"
     map_p, data = map_of(root, name)
     event = {"kind": kind, "name": name, "map": str(map_p), "entry": eid,
              "file": None if is_project else str(file_path)}
@@ -126,6 +129,35 @@ def compile_writing(root, name, kind, eid, text):
         m = ENTRY_RE.search(out)
         event.update({"entry": int(m.group(1)) if m else None, "old_text": None,
                       "new_text": text, "output": out})
+    elif kind == "decompile":
+        if is_project:
+            return 400, "the project has no code of its own"
+        if data:
+            return 400, f"{name} has a map; expand or create on its entries"
+        event.update({"entry": None, "old_text": None, "new_text": None,
+                      "output": f"decompile of {name} waits for claude"})
+    elif kind == "create":
+        entry = cmd_project.entry_of(data, eid) if data else None
+        if entry is None:
+            return 400, f"no entry {eid} in the map of {name}"
+        event.update({"target": eid, "old_text": None, "new_text": None,
+                      "output": f"a top abstraction over entry {eid} of {name} waits for claude"})
+    elif kind == "expand":
+        entry = cmd_project.entry_of(data, eid) if data else None
+        if entry is None:
+            return 400, f"no entry {eid} in the map of {name}"
+        if not words or not words.strip():
+            return 400, "no highlighted words to expand"
+        event.update({"target": eid, "words": words, "old_text": None, "new_text": None})
+        if text and text.strip():
+            code, out = run_cli(root, ["map", name, "--verbatim"], text)
+            if code != 0:
+                return 400, out
+            m = ENTRY_RE.search(out)
+            event.update({"entry": int(m.group(1)) if m else None, "new_text": text,
+                          "output": out + f"  ·  expands entry {eid}"})
+        else:
+            event["output"] = f"an expansion of entry {eid} of {name} waits for claude"
     else:
         if is_project:
             return 400, "the project has no code of its own"

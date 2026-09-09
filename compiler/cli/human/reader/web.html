@@ -64,6 +64,13 @@
   #go{color:var(--spec);border:1px solid var(--spec-line);border-radius:999px;padding:1px 9px;cursor:pointer;}
   #go[hidden]{display:none;}
   #go.busy{opacity:.5;cursor:default;}
+  .bhead .act{color:var(--spec);cursor:pointer;flex:none;}
+  .bhead .act:hover{text-decoration:underline;}
+  .bhead .act.quiet{color:var(--faint);margin-left:auto;}
+  #ctx{position:fixed;z-index:30;background:var(--surface);border:1px solid var(--hair);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.18);font-family:var(--mono);font-size:12px;padding:4px;min-width:170px;}
+  #ctx[hidden]{display:none;}
+  #ctx div{padding:5px 10px;border-radius:5px;cursor:pointer;white-space:nowrap;}
+  #ctx div:hover{background:var(--spec-wash);color:var(--spec);}
   @media (max-width:720px){
     main{padding:8px;gap:8px;}
     #menu{display:inline-block;}
@@ -89,13 +96,14 @@
   </div>
 </main>
 <div id="shade" hidden></div>
+<div id="ctx" hidden></div>
 <script type="module">
 import { FileTree } from "./trees.js";
 
 function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 var ANCH=/\[([^\[\]]+)\]\(([^()]+)\)/g;
 var projs=[], cur=null, byId={}, blockId={}, order=[], lines=[], ft=null, openSet={}, openMem={}, notice="";
-var editing=null, typed={}, pendingBy={}, sending=false, bad=false, caretWanted=0;
+var editing=null, typed={}, pendingBy={}, sending=false, bad=false, caretWanted=0, expanding=null;
 var rows=document.getElementById("rows");
 
 function msg(t){var el=document.getElementById("msg");el.hidden=!t;el.textContent=t||"";}
@@ -311,6 +319,8 @@ function key(file,kind,id){return "human-draft:"+cur.name+"/"+file+"/"+(id===nul
 
 function baseText(kind,id){return kind==="retext"?byId[id].text:kind==="code"?(cur.code||""):"";}
 
+function expandHere(){return !!expanding&&!!cur&&expanding.file===cur.file;}
+
 function shownText(kind,id){
   var k=key(cur.file,kind,id);
   if(k in typed) return typed[k];
@@ -335,9 +345,7 @@ function slots(){
     if(name!=="project"&&cur.code!==null) s.push({kind:"code",id:null});
     return s;
   }
-  var out=name==="project"?[{kind:"map",id:null}]:[];
-  order.forEach(function(e){out.push({kind:"retext",id:e.id});});
-  return out;
+  return order.map(function(e){return {kind:"retext",id:e.id};});
 }
 
 function queuedMark(name,id){
@@ -347,20 +355,31 @@ function queuedMark(name,id){
 
 function isEditing(kind,id){return !!editing&&editing.kind===kind&&editing.id===id;}
 
-function editorHtml(text){
-  return '<div class="chunk edit"><textarea spellcheck="false">'+esc(text)+'</textarea></div>';
+function editorHtml(text,kind,id){
+  return '<div class="chunk edit"><textarea spellcheck="false" data-slot="'+esc(key(cur.file,kind,id))+'">'+esc(text)+'</textarea></div>';
 }
 
-function mapSlotHtml(name,blank){
-  if(isEditing("map",null)) return editorHtml(shownText("map",null));
-  var t=shownText("map",null);
-  if(!t) return '<div class="chunk blank" data-edit="map">'+blank+'</div>';
-  return '<div class="chunk plain" data-edit="map">'+t.split("\n").map(function(l){return lineHtml({id:null,anchors:[]},l);}).join("\n")+'</div>';
+function mapSlotHtml(name){
+  var t=shownText("map",null), html="";
+  if(!t&&!isEditing("map",null)) return '<div class="chunk blank" data-edit="map">new abstraction</div>';
+  html+='<div class="bhead">'+(name==="project"?'<span class="label">new abstraction</span>'
+    :'<span class="label act" data-act="decompile">decompile '+esc(cur.file)+'</span>')+'</div>';
+  if(isEditing("map",null)) return html+editorHtml(t,"map",null);
+  return html+'<div class="chunk plain" data-edit="map">'+t.split("\n").map(function(l){return lineHtml({id:null,anchors:[]},l);}).join("\n")+'</div>';
+}
+
+function expandSlotHtml(name){
+  var t=shownText("expand",null);
+  var html='<div class="bhead"><span class="label act" data-act="expand">expand on abstraction '+expanding.entry+'</span>'
+    +'<span class="act quiet" data-act="unexpand">cancel</span></div>';
+  if(isEditing("expand",null)) return html+editorHtml(t,"expand",null);
+  if(!t) return html+'<div class="chunk blank" data-edit="expand">your words, or none</div>';
+  return html+'<div class="chunk plain" data-edit="expand">'+t.split("\n").map(function(l){return lineHtml({id:null,anchors:[]},l);}).join("\n")+'</div>';
 }
 
 function codeSlotHtml(){
   var t=shownText("code",null);
-  if(isEditing("code",null)) return editorHtml(t);
+  if(isEditing("code",null)) return editorHtml(t,"code",null);
   var ls=t?t.replace(/\n$/,"").split("\n"):[];
   if(!ls.length) return "";
   var pad=String(ls.length).length;
@@ -380,14 +399,13 @@ function header(){
 }
 
 function render(){
-  var ta=rows.querySelector(".chunk textarea");
-  if(editing&&ta) keep(ta.value);
+  keepBox();
   var name=nameOf(cur.file);
   var html=notice?'<div class="pill note'+(bad?" bad":"")+'">'+esc(notice)+'</div>':"";
   if(!cur.d.explanations.length){
     var word=cur.code===null?"loading the file":"no abstraction for this file yet";
     if(name&&cur.code!==null){
-      html+=mapSlotHtml(name,"new abstraction");
+      html+=mapSlotHtml(name);
       if(name!=="project") html+=codeSlotHtml();
     }else if(lines.length){
       var pad=String(lines.length).length;
@@ -395,17 +413,13 @@ function render(){
     }
     var top0=rows.scrollTop;
     rows.innerHTML=html;
-    document.getElementById("head").innerHTML=esc(cur.name+"/"+cur.file+"  ·  "+word)+queuedMark(name);
+    document.getElementById("head").innerHTML=esc(cur.name+"/"+cur.file+"  ·  "+word)+(name?queuedMark(name):"");
     header(); focusEditor();
     rows.scrollTop=top0;
     return;
   }
   var opened=0;
-  if(name==="project"){
-    var t=shownText("map",null);
-    if(t||isEditing("map",null)) html+='<div class="bhead"><span class="label">new abstraction'+queuedMark(name,null)+'</span></div>';
-    html+=mapSlotHtml(name,"new abstraction"+queuedMark(name,null));
-  }
+  if(name&&expandHere()) html+=expandSlotHtml(name);
   order.forEach(function(e){
     var on=!!openSet[e.id]||isEditing("retext",e.id);
     if(on) opened++;
@@ -413,7 +427,7 @@ function render(){
     html+='<div class="entry'+(on?'':' folded')+'" data-entry="'+e.id+'">'
       +'<div class="bhead closable" data-fold="'+e.id+'"><span class="caret">'+(on?'▾':'▸')+'</span><span class="label">'
       +esc(e.block)+(spans?' · '+spans:"")+queuedMark(name,e.id)+'</span></div>'
-      +'<div class="body">'+(isEditing("retext",e.id)?editorHtml(shownText("retext",e.id))
+      +'<div class="body">'+(isEditing("retext",e.id)?editorHtml(shownText("retext",e.id),"retext",e.id)
         :'<div class="chunk'+(name?' plain" data-edit="retext" data-id="'+e.id:'')+'">'
           +shownText("retext",e.id).split("\n").map(function(l){return lineHtml(e,l);}).join("\n")+'</div>')
       +'</div></div>';
@@ -442,6 +456,12 @@ function focusEditor(){
 function keep(text){
   var k=key(editing.file,editing.kind,editing.id);
   if(text!==shownText(editing.kind,editing.id)||k in typed) typed[k]=text;
+}
+
+function keepBox(){
+  var ta=rows.querySelector(".chunk textarea");
+  if(!editing||!ta||ta.getAttribute("data-slot")!==key(editing.file,editing.kind,editing.id)) return;
+  keep(ta.value);
 }
 
 function caretAt(ev,el){
@@ -503,8 +523,7 @@ function leaveEdit(text){
 
 function save(){
   if(!cur) return;
-  var ta=rows.querySelector(".chunk textarea");
-  if(editing&&ta) keep(ta.value);
+  keepBox();
   slots().forEach(function(s){
     var k=key(cur.file,s.kind,s.id);
     if(!(k in typed)) return;
@@ -512,6 +531,102 @@ function save(){
     delete typed[k];
   });
   header();
+}
+
+function post(body){
+  return fetch("compile",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+    .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});});
+}
+
+function ask(body,after){
+  if(!cur||sending) return;
+  var f=fileOf(cur.file), file=cur.file;
+  sending=true; bad=false; notice="compiling…";
+  render();
+  post(body).then(function(x){
+    sending=false;
+    if(!x.ok){notice=x.j.error||"refused";bad=true;render();return;}
+    if(after) after();
+    var said=x.j.output+(x.j.seq?"  ·  event "+x.j.seq+" waits for claude":"");
+    var show=function(){notice=said;render();pollQueue();};
+    if(!cur||cur.file!==file){show();return;}
+    reloadMap(f).then(show);
+  }).catch(function(){sending=false;notice="the server did not answer — is human serve running?";bad=true;render();});
+}
+
+function decompile(){
+  ask({name:nameOf(cur.file),kind:"decompile",id:null,text:""});
+}
+
+function expandOpen(entry,words){
+  keepBox();
+  expanding={file:cur.file,entry:entry,words:words};
+  editing={file:cur.file,kind:"expand",id:null};
+  caretWanted=0;
+  render();
+  rows.scrollTop=0;
+}
+
+function expandClose(){
+  if(!expandHere()) return;
+  var k=key(cur.file,"expand",null);
+  delete typed[k];
+  if(isEditing("expand",null)) editing=null;
+  expanding=null;
+  render();
+}
+
+function expandSend(){
+  if(!expandHere()) return;
+  keepBox();
+  var x=expanding, text=shownText("expand",null);
+  if(isEditing("expand",null)) editing=null;
+  ask({name:nameOf(cur.file),kind:"expand",id:x.entry,text:text,words:x.words},function(){
+    delete typed[key(x.file,"expand",null)];
+    if(expanding===x) expanding=null;
+  });
+}
+
+function create(entry){
+  ask({name:nameOf(cur.file),kind:"create",id:entry,text:""});
+}
+
+var ctx=document.getElementById("ctx");
+function menuAt(ev,items){
+  ev.preventDefault();
+  ctx.innerHTML="";
+  items.forEach(function(it){
+    var d=document.createElement("div");
+    d.textContent=it.label;
+    d.addEventListener("mousedown",function(e){e.preventDefault();e.stopPropagation();});
+    d.addEventListener("click",function(e){e.stopPropagation();menuClose();it.act();});
+    ctx.appendChild(d);
+  });
+  ctx.hidden=false;
+  var w=ctx.offsetWidth, h=ctx.offsetHeight;
+  ctx.style.left=Math.min(ev.clientX,window.innerWidth-w-6)+"px";
+  ctx.style.top=Math.min(ev.clientY,window.innerHeight-h-6)+"px";
+}
+function menuClose(){ctx.hidden=true;}
+
+function selectedRaw(ev){
+  var ta=ev.target.closest(".chunk textarea");
+  if(ta){
+    if(!editing||editing.kind!=="retext") return null;
+    var raw=ta.value.slice(ta.selectionStart,ta.selectionEnd);
+    return raw.trim()?{entry:editing.id,words:raw}:null;
+  }
+  var ch=ev.target.closest('.chunk[data-edit="retext"]');
+  if(!ch) return null;
+  var sel=window.getSelection();
+  if(!sel||sel.isCollapsed||!sel.rangeCount) return null;
+  var r=sel.getRangeAt(0);
+  if(!ch.contains(r.startContainer)||!ch.contains(r.endContainer)) return null;
+  var id=+ch.getAttribute("data-id"), e=byId[id], text=e.text;
+  var a=document.createRange(); a.setStart(ch,0); a.setEnd(r.startContainer,r.startOffset);
+  var b=document.createRange(); b.setStart(ch,0); b.setEnd(r.endContainer,r.endOffset);
+  var raw=text.slice(rawOffset(text,a.toString().length,e),rawOffset(text,b.toString().length,e));
+  return raw.trim()?{entry:id,words:raw}:null;
 }
 
 function reloadMap(f){
@@ -525,8 +640,7 @@ function reloadMap(f){
 
 function compile(){
   if(!cur||sending) return;
-  var ta=rows.querySelector(".chunk textarea");
-  if(editing&&ta) keep(ta.value);
+  keepBox();
   var todo=slots().filter(function(s){return changed(s.kind,s.id);});
   if(!todo.length) return;
   var f=fileOf(cur.file), name=nameOf(cur.file), file=cur.file;
@@ -625,16 +739,36 @@ rows.addEventListener("input",function(ev){
 });
 
 rows.addEventListener("focusout",function(ev){
-  if(editing&&ev.target.isConnected&&ev.target.matches(".chunk textarea")) leaveEdit(ev.target.value);
+  if(!editing||!ev.target.isConnected||!ev.target.matches(".chunk textarea")) return;
+  if(ev.target.getAttribute("data-slot")!==key(editing.file,editing.kind,editing.id)) return;
+  leaveEdit(ev.target.value);
 });
 
+rows.addEventListener("contextmenu",function(ev){
+  if(!cur||!nameOf(cur.file)||sending) return;
+  var fd=ev.target.closest(".bhead[data-fold]");
+  if(fd){
+    var id=+fd.getAttribute("data-fold");
+    menuAt(ev,[{label:"create abstraction",act:function(){create(id);}}]);
+    return;
+  }
+  var pick=selectedRaw(ev);
+  if(!pick) return;
+  menuAt(ev,[{label:"expand abstraction",act:function(){expandOpen(pick.entry,pick.words);}}]);
+});
+
+document.addEventListener("mousedown",function(ev){if(!ctx.hidden&&!ctx.contains(ev.target)) menuClose();});
+document.addEventListener("keydown",function(ev){if(ev.key==="Escape") menuClose();});
+rows.addEventListener("scroll",menuClose);
+
 rows.addEventListener("mousedown",function(ev){
-  if(ev.button!==0||ev.target.closest("textarea")||ev.target.closest(".anch[data-file],.anch[data-child]")) return;
+  if(ev.button!==0||ev.target.closest("textarea")) return;
+  if(ev.target.closest(".act")){ev.preventDefault();return;}
+  if(ev.target.closest(".anch[data-file],.anch[data-child]")) return;
   var ch=ev.target.closest(".chunk[data-edit]");
   if(!ch) return;
   ev.preventDefault();
-  var ta=rows.querySelector(".chunk textarea");
-  if(editing&&ta) keep(ta.value);
+  keepBox();
   startEdit(ch.getAttribute("data-edit"),ch.hasAttribute("data-id")?+ch.getAttribute("data-id"):null,ev,ch);
 });
 
@@ -650,6 +784,14 @@ document.getElementById("go").addEventListener("click",function(){compile();});
 
 rows.addEventListener("click",function(ev){
   if(ev.target.closest("textarea")) return;
+  var act=ev.target.closest(".act");
+  if(act){
+    var a=act.getAttribute("data-act");
+    if(a==="decompile") decompile();
+    else if(a==="expand") expandSend();
+    else if(a==="unexpand") expandClose();
+    return;
+  }
   var xf=ev.target.closest(".anch[data-file]");
   if(xf){
     var ce=xf.getAttribute("data-entry");
