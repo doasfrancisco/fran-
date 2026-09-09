@@ -103,7 +103,7 @@ import { FileTree } from "./trees.js";
 function esc(s){return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 var ANCH=/\[([^\[\]]+)\]\(([^()]+)\)/g;
 var projs=[], cur=null, byId={}, blockId={}, order=[], lines=[], ft=null, openSet={}, openMem={}, notice="";
-var editing=null, typed={}, pendingBy={}, sending=false, bad=false, caretWanted=0, expanding=null;
+var editing=null, typed={}, pendingBy={}, sending=false, bad=false, caretWanted=0, expanding=null, deleting=null;
 var rows=document.getElementById("rows");
 
 function msg(t){var el=document.getElementById("msg");el.hidden=!t;el.textContent=t||"";}
@@ -320,6 +320,7 @@ function key(file,kind,id){return "human-draft:"+cur.name+"/"+file+"/"+(id===nul
 function baseText(kind,id){return kind==="retext"?byId[id].text:kind==="code"?(cur.code||""):"";}
 
 function expandHere(){return !!expanding&&!!cur&&expanding.file===cur.file;}
+function deleteHere(){return !!deleting&&!!cur&&deleting.file===cur.file;}
 
 function shownText(kind,id){
   var k=key(cur.file,kind,id);
@@ -425,8 +426,10 @@ function render(){
     if(on) opened++;
     var spans=fmtSpans(e);
     html+='<div class="entry'+(on?'':' folded')+'" data-entry="'+e.id+'">'
-      +'<div class="bhead closable" data-fold="'+e.id+'"><span class="caret">'+(on?'▾':'▸')+'</span><span class="label">'
-      +esc(e.block)+(spans?' · '+spans:"")+queuedMark(name,e.id)+'</span></div>'
+      +(deleteHere()&&deleting.entry===e.id
+        ?'<div class="bhead"><span class="label act" data-act="delete">delete abstraction '+e.id+'</span><span class="act quiet" data-act="undelete">cancel</span></div>'
+        :'<div class="bhead closable" data-fold="'+e.id+'"><span class="caret">'+(on?'▾':'▸')+'</span><span class="label">'
+          +esc(e.block)+(spans?' · '+spans:"")+queuedMark(name,e.id)+'</span></div>')
       +'<div class="body">'+(isEditing("retext",e.id)?editorHtml(shownText("retext",e.id),"retext",e.id)
         :'<div class="chunk'+(name?' plain" data-edit="retext" data-id="'+e.id:'')+'">'
           +shownText("retext",e.id).split("\n").map(function(l){return lineHtml(e,l);}).join("\n")+'</div>')
@@ -591,6 +594,29 @@ function create(entry){
   ask({name:nameOf(cur.file),kind:"create",id:entry,text:""});
 }
 
+function deleteOpen(entry){
+  keepBox();
+  deleting={file:cur.file,entry:entry};
+  render();
+}
+
+function deleteClose(){
+  if(!deleteHere()) return;
+  deleting=null;
+  render();
+}
+
+function deleteSend(){
+  if(!deleteHere()) return;
+  var x=deleting;
+  if(isEditing("retext",x.entry)) editing=null;
+  ask({name:nameOf(cur.file),kind:"delete",id:x.entry,text:""},function(){
+    var k=key(x.file,"retext",x.entry);
+    localStorage.removeItem(k); delete typed[k]; delete openSet[x.entry];
+    if(deleting===x) deleting=null;
+  });
+}
+
 var ctx=document.getElementById("ctx");
 function menuAt(ev,items){
   ev.preventDefault();
@@ -749,7 +775,8 @@ rows.addEventListener("contextmenu",function(ev){
   var fd=ev.target.closest(".bhead[data-fold]");
   if(fd){
     var id=+fd.getAttribute("data-fold");
-    menuAt(ev,[{label:"create abstraction",act:function(){create(id);}}]);
+    menuAt(ev,[{label:"create abstraction",act:function(){create(id);}},
+               {label:"delete abstraction",act:function(){deleteOpen(id);}}]);
     return;
   }
   var pick=selectedRaw(ev);
@@ -758,7 +785,7 @@ rows.addEventListener("contextmenu",function(ev){
 });
 
 document.addEventListener("mousedown",function(ev){if(!ctx.hidden&&!ctx.contains(ev.target)) menuClose();});
-document.addEventListener("keydown",function(ev){if(ev.key==="Escape") menuClose();});
+document.addEventListener("keydown",function(ev){if(ev.key==="Escape"){menuClose();deleteClose();}});
 rows.addEventListener("scroll",menuClose);
 
 rows.addEventListener("mousedown",function(ev){
@@ -790,6 +817,8 @@ rows.addEventListener("click",function(ev){
     if(a==="decompile") decompile();
     else if(a==="expand") expandSend();
     else if(a==="unexpand") expandClose();
+    else if(a==="delete") deleteSend();
+    else if(a==="undelete") deleteClose();
     return;
   }
   var xf=ev.target.closest(".anch[data-file]");

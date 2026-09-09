@@ -212,13 +212,11 @@ def cmd_undo(a):
     data = load(root)
     if not data["explanations"]:
         sys.exit("nothing to undo")
-    last = data["explanations"][-1]
-    kids = [e["id"] for e in decompiler.children_of(data, last["id"])]
-    if kids:
-        sys.exit(f"entries {kids} point at entry {last['id']} through anchors; undo them first")
-    data["explanations"].pop()
+    gone = decompiler.undo_target(data, a.entry)
+    decompiler.undo_gate(root, data, WORD, gone)
+    data["explanations"].remove(gone)
     save(root, data)
-    print(f"removed entry {last['id']}: {WORD}")
+    print(f"removed entry {gone['id']}: {WORD}")
     print(f"wrote {map_path(root)}")
 
 

@@ -10,7 +10,7 @@ from pathlib import Path
 from . import cmd_project, decompiler
 
 FOLDER = "server"
-KINDS = ("retext", "map", "code", "decompile", "expand", "create")
+KINDS = ("retext", "map", "code", "decompile", "expand", "create", "delete")
 WRITTEN = ("retext", "map", "code")
 LOCK = threading.Lock()
 ENTRY_RE = re.compile(r"^entry (\d+)", re.M)
@@ -142,6 +142,15 @@ def compile_writing(root, name, kind, eid, text, words=None):
             return 400, f"no entry {eid} in the map of {name}"
         event.update({"target": eid, "old_text": None, "new_text": None,
                       "output": f"a top abstraction over entry {eid} of {name} waits for claude"})
+    elif kind == "delete":
+        entry = cmd_project.entry_of(data, eid) if data else None
+        if entry is None:
+            return 400, f"no entry {eid} in the map of {name}"
+        code, out = run_cli(root, ["undo", name, "--entry", str(eid)], None)
+        if code != 0:
+            return 400, out
+        said = [l for l in out.splitlines() if not l.startswith("wrote ")]
+        return 200, {"seq": None, "output": "  ·  ".join(said)}
     elif kind == "expand":
         entry = cmd_project.entry_of(data, eid) if data else None
         if entry is None:

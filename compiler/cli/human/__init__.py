@@ -226,6 +226,7 @@ def main():
     r.add_argument("--verbatim", action="store_true")
     u = sub.add_parser("undo")
     u.add_argument("code_file")
+    u.add_argument("--entry", type=int)
     s = sub.add_parser("show")
     s.add_argument("code_file")
     l = sub.add_parser("lines")

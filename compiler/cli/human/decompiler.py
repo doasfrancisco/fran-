@@ -654,24 +654,43 @@ def cmd_retext(a):
     print(f"wrote {map_path}")
 
 
+def undo_target(data, eid):
+    if eid is None:
+        return data["explanations"][-1]
+    entry = cmd_project.entry_of(data, eid)
+    if entry is None:
+        sys.exit(f"no entry {eid} in the map")
+    return entry
+
+
+def undo_gate(root, data, name, entry):
+    kids = [e["id"] for e in children_of(data, entry["id"])]
+    if kids:
+        sys.exit(f"entries {kids} point at entry {entry['id']} through anchors; undo them first")
+    if name != cmd_project.WORD and cmd_project.pins_into(root, name, entry["id"]):
+        sys.exit(f"the project map points at entry {entry['id']} through anchors; retext it first")
+    from . import cmd_train
+    path, session = cmd_train.open_session(root)
+    rows = [i for i, r in enumerate(session["rows"])
+            if r["file"] == name and r["entry"] == entry["id"] and not r["applied"]] if path else []
+    if rows:
+        sys.exit(f"the open training session holds row {rows[0]} on entry {entry['id']}; close it first")
+
+
 def cmd_undo(a):
     code_path = Path(a.code_file).resolve()
     map_path, data = load_existing(code_path)
     if not data["explanations"]:
         sys.exit("nothing to undo")
-    last = data["explanations"][-1]
-    kids = [e["id"] for e in children_of(data, last["id"])]
-    if kids:
-        sys.exit(f"entries {kids} point at entry {last['id']} through anchors; undo them first")
     root = find_root(code_path)
-    if cmd_project.pins_into(root, rel_name(code_path, root), last["id"]):
-        sys.exit(f"the project map points at entry {last['id']} through anchors; retext it first")
-    data["explanations"].pop()
+    gone = undo_target(data, a.entry)
+    undo_gate(root, data, rel_name(code_path, root), gone)
+    data["explanations"].remove(gone)
     lines = [] if code_path.is_dir() else code_path.read_text().splitlines()
     missing, blank = recompute(data, lines)
     map_path.write_text(json.dumps(data, indent=2) + "\n")
-    tail = "" if code_path.is_dir() else f", lines {fmt(expand(last['block_lines']))}"
-    print(f"removed entry {last['id']}: {last['block']}{tail}")
+    tail = "" if code_path.is_dir() else f", lines {fmt(expand(gone['block_lines']))}"
+    print(f"removed entry {gone['id']}: {gone['block']}{tail}")
     if not code_path.is_dir():
         print_coverage(missing, blank, lines)
     print(f"wrote {map_path}")
